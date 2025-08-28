@@ -1,0 +1,197 @@
+import enum
+from datetime import datetime
+from typing import List, Optional
+
+from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer, String, LargeBinary, JSON,
+                        Text, func, Boolean)
+from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
+
+Base = declarative_base()
+
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    member = "member"
+
+class AnalysisStatus(str, enum.Enum):
+    pending = "pending"
+    in_progress = "in_progress"
+    completed = "completed"
+    failed = "failed"
+
+class SuggestionStatus(str, enum.Enum):
+    suggested = "suggested"
+    accepted = "accepted"
+    rejected = "rejected"
+
+class SubscriptionStatus(str, enum.Enum):
+    trialing = "trialing"
+    active = "active"
+    past_due = "past_due"
+    canceled = "canceled"
+    incomplete = "incomplete"
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    users: Mapped[List["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    contracts: Mapped[List["Contract"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    clauses: Mapped[List["Clause"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    templates: Mapped[List["ContractTemplate"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    integrations: Mapped[List["OrganizationIntegration"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+
+    # --- NEW: Billing Fields ---
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String, unique=True, index=True)
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String, unique=True)
+    subscription_status: Mapped[Optional[SubscriptionStatus]] = mapped_column(Enum(SubscriptionStatus), index=True)
+    plan_id: Mapped[Optional[str]] = mapped_column(String) # e.g., 'price_starter', 'price_pro'
+    current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.member, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"))
+    organization: Mapped["Organization"] = relationship(back_populates="users")
+    
+    # Relationships
+    contracts: Mapped[List["Contract"]] = relationship(back_populates="uploader")
+    comments: Mapped[List["UserComment"]] = relationship(back_populates="user")
+    notifications: Mapped[List["Notification"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    clauses: Mapped[List["Clause"]] = relationship(back_populates="created_by")
+    created_templates: Mapped[List["ContractTemplate"]] = relationship(back_populates="created_by")
+
+class Contract(Base):
+    __tablename__ = "contracts"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    analysis_status: Mapped[AnalysisStatus] = mapped_column(Enum(AnalysisStatus), default=AnalysisStatus.pending, nullable=False)
+    full_text: Mapped[Optional[str]] = mapped_column(Text)
+    signature_request_id: Mapped[Optional[str]] = mapped_column(String)
+
+    uploader_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"))
+
+    # Relationships
+    uploader: Mapped["User"] = relationship(back_populates="contracts")
+    organization: Mapped["Organization"] = relationship(back_populates="contracts")
+    suggestions: Mapped[List["AnalysisSuggestion"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
+    comments: Mapped[List["UserComment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
+
+class AnalysisSuggestion(Base):
+    __tablename__ = "analysis_suggestions"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    start_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    original_text: Mapped[str] = mapped_column(Text, nullable=False)
+    suggested_text: Mapped[Optional[str]] = mapped_column(Text)
+    comment: Mapped[str] = mapped_column(Text, nullable=False)
+    risk_category: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[SuggestionStatus] = mapped_column(Enum(SuggestionStatus), default=SuggestionStatus.suggested, nullable=False)
+
+    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
+    contract: Mapped["Contract"] = relationship(back_populates="suggestions")
+
+class UserComment(Base):
+    __tablename__ = "user_comments"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    start_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment_text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+
+    contract: Mapped["Contract"] = relationship(back_populates="comments")
+    user: Mapped["User"] = relationship(back_populates="comments")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message: Mapped[str] = mapped_column(String, nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    user: Mapped["User"] = relationship(back_populates="notifications")
+
+class Clause(Base):
+    __tablename__ = "clauses"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[Optional[str]] = mapped_column(String, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    organization: Mapped["Organization"] = relationship(back_populates="clauses")
+    created_by: Mapped["User"] = relationship(back_populates="clauses")
+
+class ContractTemplate(Base):
+    __tablename__ = "contract_templates"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(Text, nullable=False) # Template body with placeholders like {{variable_name}}
+    category: Mapped[Optional[str]] = mapped_column(String, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    organization: Mapped["Organization"] = relationship(back_populates="templates")
+    created_by: Mapped["User"] = relationship(back_populates="created_templates")
+
+class Integration(Base):
+    __tablename__ = "integrations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True) # e.g., "salesforce", "hubspot"
+    description: Mapped[str] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True) # System-wide toggle
+
+class OrganizationIntegration(Base):
+    __tablename__ = "organization_integrations"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=False) # Org-specific toggle
+    encrypted_credentials: Mapped[Optional[bytes]] = mapped_column(LargeBinary) # Encrypted JSON blob of credentials
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+    integration_id: Mapped[int] = mapped_column(ForeignKey("integrations.id"), nullable=False)
+
+    # Relationships
+    organization: Mapped["Organization"] = relationship(back_populates="integrations")
+    integration: Mapped["Integration"] = relationship()
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    action: Mapped[str] = mapped_column(String, nullable=False, index=True) # e.g., "user.login", "contract.create"
+    details: Mapped[Optional[dict]] = mapped_column(JSON) # e.g., {"contract_id": "...", "filename": "..."}
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
+
+    # Relationships
+    user: Mapped["User"] = relationship()
