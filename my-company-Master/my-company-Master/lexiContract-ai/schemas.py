@@ -2,7 +2,7 @@ from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List, Dict
 from datetime import datetime
 import uuid
-from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus
+from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus
 
 # --- User Schemas ---
 class UserBase(BaseModel):
@@ -51,6 +51,25 @@ class Organization(OrganizationBase):
     plan_id: Optional[str] = None
     current_period_end: Optional[datetime] = None
 
+    # V2 Compliance Module Field
+    enabled_playbooks: List["CompliancePlaybook"] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- ContractVersion Schemas ---
+class ContractVersionBase(BaseModel):
+    full_text: Optional[str] = None
+
+class ContractVersion(ContractVersionBase):
+    id: uuid.UUID
+    contract_id: uuid.UUID
+    version_number: int
+    analysis_status: AnalysisStatus
+    created_at: datetime
+    uploader_id: uuid.UUID
+    suggestions: List["AnalysisSuggestion"] = []
+    comments: List["UserComment"] = []
+
     model_config = ConfigDict(from_attributes=True)
 
 # --- Contract Schemas ---
@@ -59,13 +78,12 @@ class ContractBase(BaseModel):
 
 class Contract(ContractBase):
     id: uuid.UUID
-    uploader_id: uuid.UUID
     organization_id: uuid.UUID
     created_at: datetime
-    analysis_status: AnalysisStatus
-    full_text: Optional[str] = None
+    negotiation_status: NegotiationStatus
     signature_request_id: Optional[str] = None
     highlighted_snippet: Optional[str] = None # New field for search results
+    versions: List[ContractVersion] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -80,6 +98,7 @@ class AnalysisSuggestionCreate(BaseModel):
 
 class AnalysisSuggestion(AnalysisSuggestionCreate):
     id: uuid.UUID
+    contract_version_id: uuid.UUID
     status: SuggestionStatus
 
     model_config = ConfigDict(from_attributes=True)
@@ -92,6 +111,7 @@ class UserCommentCreate(BaseModel):
 
 class UserComment(UserCommentCreate):
     id: uuid.UUID
+    contract_version_id: uuid.UUID
     user_id: uuid.UUID
     created_at: datetime
 
@@ -136,6 +156,49 @@ class FindSimilarClausesRequest(BaseModel):
 class ClauseSimilarityResult(Clause):
     similarity_score: float
 
+# --- Schemas for PlaybookRule ---
+
+class PlaybookRuleBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    pattern: str
+    risk_category: str
+
+class PlaybookRuleCreate(PlaybookRuleBase):
+    pass
+
+class PlaybookRule(PlaybookRuleBase):
+    id: uuid.UUID
+    playbook_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+# --- Schemas for CompliancePlaybook ---
+
+class CompliancePlaybookBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    industry: Optional[str] = None
+    is_active: bool = True
+
+class CompliancePlaybookCreate(CompliancePlaybookBase):
+    rules: List[PlaybookRuleCreate] = []
+
+class CompliancePlaybookUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    industry: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class CompliancePlaybook(CompliancePlaybookBase):
+    id: uuid.UUID
+    rules: List[PlaybookRule] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+class OrganizationPlaybookToggle(BaseModel):
+    playbook_id: uuid.UUID
+    enable: bool
 # --- Contract Template Schemas ---
 class ContractTemplateBase(BaseModel):
     title: str
@@ -233,3 +296,24 @@ class StripeWebhookEvent(BaseModel):
     id: str
     object: str
     type: str
+
+# --- Compliance Insights Dashboard Schemas ---
+
+class FindingByCategory(BaseModel):
+    category: str
+    count: int
+
+class TopFlaggedContract(BaseModel):
+    contract_id: uuid.UUID
+    filename: str
+    finding_count: int
+
+class ComplianceDashboardSummary(BaseModel):
+    findings_by_category: List[FindingByCategory]
+    top_flagged_contracts: List[TopFlaggedContract]
+
+# Resolve forward references for circular dependencies
+UserWithOrg.model_rebuild()
+Organization.model_rebuild()
+Contract.model_rebuild()
+ContractVersion.model_rebuild()

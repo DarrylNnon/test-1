@@ -1,0 +1,23 @@
+{
+  "countries": {
+    "Switzerland": { "risk": "Low", "comment": "Stable legal framework and strong contract enforcement." },
+    "United Kingdom": { "risk": "Low", "comment": "Well-established common law system." },
+    "Singapore": { "risk": "Low", "comment": "Highly regarded international commercial court and arbitration center." },
+    "Canada": { "risk": "Low", "comment": "Predictable common law system similar to the US and UK." },
+    "Germany": { "risk": "Low", "comment": "Robust civil law system with reliable contract enforcement." },
+    "France": { "risk": "Low", "comment": "Strong civil law tradition and part of the EU legal framework." },
+    "China": { "risk": "Medium", "comment": "Legal system can be complex and less predictable for foreign entities. Enforcement of foreign judgments can be challenging." },
+    "India": { "risk": "Medium", "comment": "Judicial system can be slow, leading to lengthy dispute resolution processes." },
+    "Brazil": { "risk": "Medium", "comment": "Complex tax and regulatory environment can impact contracts." },
+    "Russia": { "risk": "High", "comment": "Subject to international sanctions and significant legal and political unpredictability." },
+    "Venezuela": { "risk": "High", "comment": "Extreme political instability and a judicial system with low independence." },
+    "Iran": { "risk": "High", "comment": "Subject to extensive international sanctions, making contract enforcement nearly impossible for many foreign parties." }
+  },
+  "states": {
+    "Delaware": { "risk": "Low", "comment": "The preeminent jurisdiction for corporate law in the United States, known for its expert judiciary and predictable legal framework." },
+    "New York": { "risk": "Low", "comment": "A leading global center for commercial and financial contracts, with a sophisticated judiciary." },
+    "California": { "risk": "Low", "comment": "Well-developed commercial law, particularly for technology and entertainment industries." },
+    "Texas": { "risk": "Low", "comment": "A major commercial hub with a generally business-friendly legal environment." },
+    "Louisiana": { "risk": "Medium", "comment": "Unique civil law system within the US, which can be unfamiliar to parties accustomed to common law." }
+  }
+}

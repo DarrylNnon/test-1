@@ -4,6 +4,7 @@ import difflib
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 import json
+from sqlalchemy import func
 import re
 from . import models, schemas, security
 
@@ -39,8 +40,10 @@ def create_user(db: Session, user: schemas.UserCreate):
 def get_contracts_by_organization(
     db: Session, organization_id: uuid.UUID, skip: int = 0, limit: int = 100
 ):
+    # Eagerly load the versions for each contract
     return (
         db.query(models.Contract)
+        .options(joinedload(models.Contract.versions))
         .filter(models.Contract.organization_id == organization_id)
         .order_by(models.Contract.created_at.desc())
         .offset(skip)
@@ -49,38 +52,122 @@ def get_contracts_by_organization(
     )
 
 def get_contract_by_id(db: Session, contract_id: uuid.UUID, organization_id: uuid.UUID):
+    # Eagerly load all versions and their nested suggestions and comments for the detail view
     return (
         db.query(models.Contract)
+        .options(
+            joinedload(models.Contract.versions)
+            .joinedload(models.ContractVersion.suggestions),
+            joinedload(models.Contract.versions)
+            .joinedload(models.ContractVersion.comments)
+            .joinedload(models.UserComment.user)
+        )
         .filter(models.Contract.id == contract_id, models.Contract.organization_id == organization_id)
         .first()
     )
 
-def update_contract_status(db: Session, contract_id: uuid.UUID, status: models.AnalysisStatus):
-    db_contract = db.query(models.Contract).filter(models.Contract.id == contract_id).first()
-    if db_contract:
-        db_contract.analysis_status = status
-        db.commit()
-        db.refresh(db_contract)
+def create_contract_with_initial_version(db: Session, filename: str, full_text: str, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.Contract:
+    """
+    Creates a new Contract record and its initial ContractVersion (v1).
+    """
+    # Create the parent contract record
+    db_contract = models.Contract(
+        filename=filename,
+        organization_id=organization_id,
+    )
+    db.add(db_contract)
+    db.flush() # Flush to get the contract ID before creating the version
+
+    # Create the first version of the contract
+    initial_version = models.ContractVersion(
+        contract_id=db_contract.id,
+        version_number=1,
+        full_text=full_text,
+        uploader_id=user_id,
+        analysis_status=models.AnalysisStatus.pending # Analysis starts now
+    )
+    db.add(initial_version)
+    db.commit()
+    db.refresh(db_contract)
     return db_contract
+
+def create_new_contract_version(db: Session, contract_id: uuid.UUID, full_text: str, uploader_id: uuid.UUID) -> Optional[models.ContractVersion]:
+    """
+    Creates a new version for an existing contract.
+    """
+    # Get the highest existing version number for this contract to determine the new version number
+    highest_version = db.query(func.max(models.ContractVersion.version_number)).filter(models.ContractVersion.contract_id == contract_id).scalar() or 0
+
+    new_version = models.ContractVersion(
+        contract_id=contract_id,
+        version_number=highest_version + 1,
+        full_text=full_text,
+        uploader_id=uploader_id,
+        analysis_status=models.AnalysisStatus.pending
+    )
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+    return new_version
+
+def get_contract_version_by_id(db: Session, version_id: uuid.UUID) -> Optional[models.ContractVersion]:
+    return db.query(models.ContractVersion).filter(models.ContractVersion.id == version_id).first()
+
+def update_contract_version_status(db: Session, version_id: uuid.UUID, status: models.AnalysisStatus):
+    db_version = db.query(models.ContractVersion).filter(models.ContractVersion.id == version_id).first()
+    if db_version:
+        db_version.analysis_status = status
+        db.commit()
+        db.refresh(db_version)
+    return db_version
+
+def update_contract_version_analysis(db: Session, version_id: uuid.UUID, full_text: str, suggestions: List[schemas.AnalysisSuggestionCreate]) -> models.ContractVersion:
+    """
+    Updates a contract version with the full text and a new set of analysis suggestions.
+    This function deletes old suggestions and creates new ones to ensure idempotency.
+    """
+    db_version = db.query(models.ContractVersion).filter(models.ContractVersion.id == version_id).first()
+    if not db_version:
+        return None
+
+    # Update contract text and status
+    db_version.full_text = full_text
+    db_version.analysis_status = models.AnalysisStatus.completed
+
+    # Delete existing suggestions for this version
+    db.query(models.AnalysisSuggestion).filter(models.AnalysisSuggestion.contract_version_id == version_id).delete(synchronize_session=False)
+
+    # Create new suggestions
+    for suggestion_in in suggestions:
+        db_suggestion = models.AnalysisSuggestion(
+            **suggestion_in.model_dump(),
+            contract_version_id=version_id
+        )
+        db.add(db_suggestion)
+
+    db.commit()
+    db.refresh(db_version)
+    return db_version
 
 def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
     """
     Retrieves an analysis suggestion by its ID.
     """
-    # We use .options(joinedload(models.AnalysisSuggestion.contract)) to eagerly load
-    # the related contract, which is needed for the authorization check in the API layer.
-    # This avoids a second database query.
-    return db.query(models.AnalysisSuggestion).filter(models.AnalysisSuggestion.id == suggestion_id).first()
+    # Eagerly load up to the contract for authorization checks
+    return db.query(models.AnalysisSuggestion).options(
+        joinedload(models.AnalysisSuggestion.version)
+        .joinedload(models.ContractVersion.contract)
+    ).filter(models.AnalysisSuggestion.id == suggestion_id).first()
 
 def update_suggestion_status(
-    db: Session, suggestion_id: uuid.UUID, contract_id: uuid.UUID, data: schemas.AnalysisSuggestionUpdate
+    db: Session, suggestion_id: uuid.UUID, contract_version_id: uuid.UUID, data: schemas.AnalysisSuggestionUpdate
 ) -> Optional[models.AnalysisSuggestion]:
     """
-    Updates the status of a single analysis suggestion, ensuring it belongs to the correct contract.
+    Updates the status of a single analysis suggestion, ensuring it belongs to the correct contract version.
     """
     db_suggestion = db.query(models.AnalysisSuggestion).filter(
         models.AnalysisSuggestion.id == suggestion_id,
-        models.AnalysisSuggestion.contract_id == contract_id
+        models.AnalysisSuggestion.contract_version_id == contract_version_id
     ).first()
 
     if db_suggestion:
@@ -192,11 +279,11 @@ def reset_user_password(db: Session, user: models.User, new_password_hash: str) 
 def create_user_comment(
     db: Session,
     comment: schemas.UserCommentCreate,
-    contract_id: uuid.UUID,
+    contract_version_id: uuid.UUID,
     user_id: uuid.UUID,
 ) -> models.UserComment:
     db_comment = models.UserComment(
-        **comment.model_dump(), contract_id=contract_id, user_id=user_id
+        **comment.model_dump(), contract_version_id=contract_version_id, user_id=user_id
     )
     db.add(db_comment)
     db.commit()
@@ -282,11 +369,13 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
 # --- Analytics CRUD ---
 
 def get_analytics_kpis(db: Session, organization_id: uuid.UUID) -> dict:
-    total_contracts = db.query(func.count(models.Contract.id)).filter(models.Contract.organization_id == organization_id).scalar()
+    total_contracts = db.query(func.count(models.Contract.id)).filter(
+        models.Contract.organization_id == organization_id
+    ).scalar()
     
-    contracts_in_progress = db.query(func.count(models.Contract.id)).filter(
+    contracts_in_progress = db.query(func.count(models.ContractVersion.id)).join(models.Contract).filter(
         models.Contract.organization_id == organization_id,
-        models.Contract.analysis_status.in_([models.AnalysisStatus.pending, models.AnalysisStatus.in_progress])
+        models.ContractVersion.analysis_status.in_([models.AnalysisStatus.pending, models.AnalysisStatus.in_progress])
     ).scalar()
 
     # Calculate average cycle time for completed contracts
@@ -310,7 +399,9 @@ def get_risk_category_distribution(db: Session, organization_id: uuid.UUID) -> L
     results = db.query(
         models.AnalysisSuggestion.risk_category,
         func.count(models.AnalysisSuggestion.id).label('count')
-    ).join(models.Contract).filter(
+    ).join(models.ContractVersion, models.AnalysisSuggestion.contract_version_id == models.ContractVersion.id)\
+     .join(models.Contract, models.ContractVersion.contract_id == models.Contract.id)\
+     .filter(
         models.Contract.organization_id == organization_id
     ).group_by(
         models.AnalysisSuggestion.risk_category
@@ -416,3 +507,157 @@ def get_audit_logs_by_organization(db: Session, *, organization_id: uuid.UUID, s
         .limit(limit)
         .all()
     )
+
+# --- Compliance Playbook CRUD ---
+
+def create_compliance_playbook(db: Session, playbook: schemas.CompliancePlaybookCreate) -> models.CompliancePlaybook:
+    """Creates a new compliance playbook with its associated rules."""
+    db_playbook = models.CompliancePlaybook(
+        name=playbook.name,
+        description=playbook.description,
+        is_active=playbook.is_active
+    )
+    for rule_in in playbook.rules:
+        db_rule = models.PlaybookRule(**rule_in.model_dump())
+        db_playbook.rules.append(db_rule)
+    
+    db.add(db_playbook)
+    db.commit()
+    db.refresh(db_playbook)
+    return db_playbook
+
+def get_all_compliance_playbooks(db: Session) -> List[models.CompliancePlaybook]:
+    """Retrieves all compliance playbooks with their rules."""
+    return db.query(models.CompliancePlaybook).options(joinedload(models.CompliancePlaybook.rules)).all()
+
+def get_active_compliance_playbooks(db: Session) -> List[models.CompliancePlaybook]:
+    """Retrieves all active compliance playbooks with their rules."""
+    return (
+        db.query(models.CompliancePlaybook)
+        .options(joinedload(models.CompliancePlaybook.rules))
+        .filter(models.CompliancePlaybook.is_active == True)
+        .all()
+    )
+
+def get_compliance_playbook_by_id(db: Session, playbook_id: uuid.UUID) -> Optional[models.CompliancePlaybook]:
+    """Retrieves a single compliance playbook by its ID."""
+    return db.query(models.CompliancePlaybook).options(joinedload(models.CompliancePlaybook.rules)).filter(models.CompliancePlaybook.id == playbook_id).first()
+
+def update_compliance_playbook(db: Session, playbook_id: uuid.UUID, playbook_update: schemas.CompliancePlaybookUpdate) -> Optional[models.CompliancePlaybook]:
+    """Updates a compliance playbook's top-level fields (name, description, is_active)."""
+    db_playbook = get_compliance_playbook_by_id(db, playbook_id)
+    if db_playbook:
+        update_data = playbook_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_playbook, key, value)
+        db.commit()
+        db.refresh(db_playbook)
+    return db_playbook
+
+def delete_compliance_playbook(db: Session, playbook_id: uuid.UUID) -> Optional[models.CompliancePlaybook]:
+    """Deletes a compliance playbook and all its associated rules."""
+    db_playbook = get_compliance_playbook_by_id(db, playbook_id)
+    if db_playbook:
+        db.delete(db_playbook)
+        db.commit()
+    return db_playbook
+
+def get_playbooks_for_organization(db: Session, organization_id: uuid.UUID) -> List[models.CompliancePlaybook]:
+    """
+    Retrieves all playbooks applicable to a given organization.
+    This includes:
+    1. All active, non-industry-specific playbooks (industry is NULL).
+    2. All active, industry-specific playbooks that the organization has explicitly enabled.
+    """
+    # Get general playbooks (not specific to any industry)
+    general_playbooks = (
+        db.query(models.CompliancePlaybook)
+        .options(joinedload(models.CompliancePlaybook.rules))
+        .filter(models.CompliancePlaybook.is_active == True, models.CompliancePlaybook.industry == None)
+        .all()
+    )
+
+    # Get playbooks explicitly enabled by the organization
+    organization = (
+        db.query(models.Organization)
+        .options(joinedload(models.Organization.enabled_playbooks).joinedload(models.CompliancePlaybook.rules))
+        .filter(models.Organization.id == organization_id)
+        .first()
+    )
+    enabled_playbooks = organization.enabled_playbooks if organization else []
+
+    # Combine and deduplicate
+    final_playbooks = {playbook.id: playbook for playbook in general_playbooks}
+    for playbook in enabled_playbooks:
+        if playbook.is_active:  # Only include active playbooks
+            final_playbooks[playbook.id] = playbook
+
+    return list(final_playbooks.values())
+
+def get_available_industry_playbooks(db: Session) -> List[models.CompliancePlaybook]:
+    """Retrieves all active, industry-specific playbooks that organizations can opt into."""
+    return db.query(models.CompliancePlaybook).filter(models.CompliancePlaybook.is_active == True, models.CompliancePlaybook.industry != None).all()
+
+def toggle_organization_playbook(db: Session, organization: models.Organization, playbook_id: uuid.UUID, enable: bool) -> Optional[models.Organization]:
+    """Enables or disables an industry-specific playbook for an organization."""
+    playbook = db.query(models.CompliancePlaybook).filter(models.CompliancePlaybook.id == playbook_id, models.CompliancePlaybook.industry != None).first()
+    if not playbook:
+        return None  # Playbook not found or is not an industry playbook
+
+    if enable and playbook not in organization.enabled_playbooks:
+        organization.enabled_playbooks.append(playbook)
+    elif not enable and playbook in organization.enabled_playbooks:
+        organization.enabled_playbooks.remove(playbook)
+
+    db.commit()
+    db.refresh(organization)
+    return organization
+
+# --- Compliance Insights Dashboard CRUD ---
+
+def get_compliance_findings_by_category(db: Session, organization_id: uuid.UUID) -> List[dict]:
+    """
+    Aggregates compliance-related analysis suggestions by risk category for a given organization.
+    Only includes categories from compliance playbooks (e.g., HIPAA, FAR, Data Privacy), not general AI suggestions.
+    """
+    # Define what counts as a compliance category to filter out general suggestions
+    compliance_categories = ["HIPAA", "FAR", "Data Privacy", "Security", "Compliance"]
+    results = (
+        db.query(
+            models.AnalysisSuggestion.risk_category,
+            func.count(models.AnalysisSuggestion.id).label('count')
+        )
+        .join(models.ContractVersion, models.AnalysisSuggestion.contract_version_id == models.ContractVersion.id)
+        .join(models.Contract, models.ContractVersion.contract_id == models.Contract.id)
+        .filter(
+            models.Contract.organization_id == organization_id,
+            models.AnalysisSuggestion.risk_category.in_(compliance_categories)
+        )
+        .group_by(models.AnalysisSuggestion.risk_category)
+        .order_by(func.count(models.AnalysisSuggestion.id).desc())
+        .all()
+    )
+    return [{"category": row.risk_category, "count": row.count} for row in results]
+
+def get_top_flagged_contracts(db: Session, organization_id: uuid.UUID, limit: int = 5) -> List[dict]:
+    """
+    Finds the contracts with the highest number of compliance-related findings.
+    """
+    compliance_categories = ["HIPAA", "FAR", "Data Privacy", "Security", "Compliance"]
+    results = (
+        db.query(
+            models.Contract.id,
+            models.Contract.filename,
+            func.count(models.AnalysisSuggestion.id).label('finding_count')
+        )
+        .join(models.ContractVersion).join(models.AnalysisSuggestion)
+        .filter(
+            models.Contract.organization_id == organization_id,
+            models.AnalysisSuggestion.risk_category.in_(compliance_categories)
+        )
+        .group_by(models.Contract.id, models.Contract.filename)
+        .order_by(func.count(models.AnalysisSuggestion.id).desc())
+        .limit(limit)
+        .all()
+    )
+    return [{"contract_id": row.id, "filename": row.filename, "finding_count": row.finding_count} for row in results]

@@ -3,10 +3,20 @@ from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer, String, LargeBinary, JSON,
-                        Text, func, Boolean)
+                        Text, func, Boolean, event)
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
+from datetime import datetime, timezone
+
+from .database import Base
+
+# Association Table for Organization <-> CompliancePlaybook
+organization_playbook_association = Table(
+    'organization_playbook_association', Base.metadata,
+    Column('organization_id', UUID(as_uuid=True), ForeignKey('organizations.id'), primary_key=True),
+    Column('playbook_id', UUID(as_uuid=True), ForeignKey('compliance_playbooks.id'), primary_key=True)
+)
 
 Base = declarative_base()
 
@@ -19,6 +29,13 @@ class AnalysisStatus(str, enum.Enum):
     in_progress = "in_progress"
     completed = "completed"
     failed = "failed"
+
+class NegotiationStatus(str, enum.Enum):
+    DRAFTING = "DRAFTING"
+    INTERNAL_REVIEW = "INTERNAL_REVIEW"
+    EXTERNAL_REVIEW = "EXTERNAL_REVIEW"
+    SIGNED = "SIGNED"
+    ARCHIVED = "ARCHIVED"
 
 class SuggestionStatus(str, enum.Enum):
     suggested = "suggested"
@@ -53,6 +70,12 @@ class Organization(Base):
     plan_id: Mapped[Optional[str]] = mapped_column(String) # e.g., 'price_starter', 'price_pro'
     current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
+# V2 Compliance Module Relationship
+    enabled_playbooks = relationship(
+        "CompliancePlaybook",
+        secondary=organization_playbook_association,
+        back_populates="enabled_by_organizations")
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -74,11 +97,13 @@ class User(Base):
 
 class Contract(Base):
     __tablename__ = "contracts"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     filename: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     analysis_status: Mapped[AnalysisStatus] = mapped_column(Enum(AnalysisStatus), default=AnalysisStatus.pending, nullable=False)
     full_text: Mapped[Optional[str]] = mapped_column(Text)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    negotiation_status = Column(Enum(NegotiationStatus), default=NegotiationStatus.DRAFTING, nullable=False)
     signature_request_id: Mapped[Optional[str]] = mapped_column(String)
 
     uploader_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
@@ -89,10 +114,30 @@ class Contract(Base):
     organization: Mapped["Organization"] = relationship(back_populates="contracts")
     suggestions: Mapped[List["AnalysisSuggestion"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
     comments: Mapped[List["UserComment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
+    versions = relationship("ContractVersion", back_populates="contract", cascade="all, delete-orphan", order_by="ContractVersion.version_number")
+
+
+class ContractVersion(Base):
+    __tablename__ = "contract_versions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("contracts.id"), nullable=False)
+    version_number = Column(Integer, nullable=False)
+    full_text = Column(Text, nullable=True)
+    analysis_status = Column(Enum(AnalysisStatus), default=AnalysisStatus.pending, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    uploader_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    contract = relationship("Contract", back_populates="versions")
+    uploader = relationship("User")
+    suggestions = relationship("AnalysisSuggestion", back_populates="version", cascade="all, delete-orphan")
+    comments = relationship("UserComment", back_populates="version", cascade="all, delete-orphan")
 
 class AnalysisSuggestion(Base):
     __tablename__ = "analysis_suggestions"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    contract_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=False)
     start_index: Mapped[int] = mapped_column(Integer, nullable=False)
     end_index: Mapped[int] = mapped_column(Integer, nullable=False)
     original_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -103,6 +148,7 @@ class AnalysisSuggestion(Base):
 
     contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
     contract: Mapped["Contract"] = relationship(back_populates="suggestions")
+    version = relationship("ContractVersion", back_populates="suggestions")
 
 class UserComment(Base):
     __tablename__ = "user_comments"
@@ -111,12 +157,16 @@ class UserComment(Base):
     end_index: Mapped[int] = mapped_column(Integer, nullable=False)
     comment_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    contract_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=False)
 
     contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
     contract: Mapped["Contract"] = relationship(back_populates="comments")
     user: Mapped["User"] = relationship(back_populates="comments")
+    version = relationship("ContractVersion", back_populates="comments")
+    user = relationship("User")
 
 class Notification(Base):
     __tablename__ = "notifications"
@@ -195,3 +245,30 @@ class AuditLog(Base):
 
     # Relationships
     user: Mapped["User"] = relationship()
+
+class CompliancePlaybook(Base):
+    __tablename__ = "compliance_playbooks"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    industry = Column(String, nullable=True, index=True) # e.g., "Healthcare", "Government"
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    rules = relationship("PlaybookRule", back_populates="playbook", cascade="all, delete-orphan")
+    enabled_by_organizations = relationship(
+        "Organization",
+        secondary=organization_playbook_association,
+        back_populates="enabled_playbooks")
+
+class PlaybookRule(Base):
+    __tablename__ = "playbook_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    pattern = Column(Text, nullable=False)  # Regex pattern
+    risk_category = Column(String, nullable=False)
+
+    playbook_id = Column(UUID(as_uuid=True), ForeignKey("compliance_playbooks.id"), nullable=False)
+    playbook = relationship("CompliancePlaybook", back_populates="rules")

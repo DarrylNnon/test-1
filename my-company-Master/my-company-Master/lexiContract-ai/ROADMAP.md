@@ -41,5 +41,9 @@ This roadmap outlines the key phases for building LexiContract AI into a multi-b
     2.  **AI-Powered Contract Drafting:** Generate entire contracts from simple prompts and templates.
     3.  **Advanced Analytics:** Provide dashboards on negotiation cycles, risk exposure across all contracts, and team performance.
     4.  **CRM/ERP Integration:** Integrate with Salesforce, HubSpot, and SAP for seamless data flow.
-    5.  **Compliance Modules:** Automated checks for regulations like GDPR, CCPA, and industry-specific rules.
+    5.  **Advanced Compliance Modules:**
+        *   **Objective:** Move beyond security compliance to offer productized legal and regulatory compliance features, turning a cost center into a revenue driver.
+        *   **GDPR/CCPA PII Detection:** Automatically scan contracts for clauses related to Personally Identifiable Information (PII) and flag potential GDPR/CCPA compliance issues.
+        *   **Industry-Specific Playbooks:** Offer pre-built rule sets for specific industries (e.g., HIPAA for healthcare, FAR for government contracting) that automatically check contracts against relevant regulations.
+        *   **Geopolitical Risk Analysis:** Analyze governing law and jurisdiction clauses to flag potential risks associated with international contracts.
 *   **Key Outcome:** Secure major enterprise clients, achieve a dominant market position, and drive toward a multi-billion dollar valuation.

@@ -1,0 +1,5 @@
+This Business Associate Agreement (BAA) is entered into to ensure the protection of Protected Health Information (PHI).
+
+The parties agree to implement appropriate safeguards for PHI.
+
+In the event of a breach of unsecured PHI, the Business Associate must notify the Covered Entity.

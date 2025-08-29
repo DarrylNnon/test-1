@@ -1,0 +1,81 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  dependency-scan:
+    name: Scan Dependencies (Snyk)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run Snyk to check for backend vulnerabilities
+        uses: snyk/actions/python@master
+        continue-on-error: true # Allows reporting before failing the build
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          file: lexiContract-ai/requirements.txt
+          command: monitor
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        run: npm install --prefix lexiContract-ai/frontend
+
+      - name: Run Snyk to check for frontend vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true # Allows reporting before failing the build
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          file: lexiContract-ai/frontend/package.json
+          command: monitor
+
+  container-scan:
+    name: Scan Container Images (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t backend-image:latest -f lexiContract-ai/Dockerfile ./lexiContract-ai
+
+      - name: Run Trivy vulnerability scanner on backend image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'backend-image:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  sast-scan:
+    name: Static Code Analysis (Snyk Code)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run Snyk Code to check for code vulnerabilities
+      uses: snyk/actions/python@master
+      continue-on-error: true # Allows reporting before failing the build
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        command: code test
+        args: --all-projects
