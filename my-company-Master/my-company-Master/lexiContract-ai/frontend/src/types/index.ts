@@ -37,6 +37,55 @@ export interface Contract {
   highlighted_snippet?: string | null;
 }
 
+// --- Post-Signature Management Types ---
+
+export enum MilestoneType {
+  EffectiveDate = "Effective Date",
+  ExpirationDate = "Expiration Date",
+  AutoRenewalDate = "Auto-Renewal Date",
+  RenewalNoticeDeadline = "Renewal Notice Deadline",
+  TerminationNoticeDeadline = "Termination Notice Deadline",
+}
+
+export enum ResponsibleParty {
+  OurCompany = "Our Company",
+  Counterparty = "Counterparty",
+}
+
+export enum ObligationStatus {
+  Pending = "Pending",
+  InProgress = "In Progress",
+  Completed = "Completed",
+  Overdue = "Overdue",
+}
+
+export interface ContractMilestone {
+  id: number;
+  milestone_type: MilestoneType;
+  milestone_date: string; // Dates are strings from JSON
+  description: string | null;
+}
+
+export interface TrackedObligation {
+  id: number;
+  obligation_text: string;
+  responsible_party: ResponsibleParty;
+  due_date: string | null; // Dates are strings from JSON
+  status: ObligationStatus;
+}
+
+export interface RenewalContract {
+  id: string;
+  filename: string;
+  expiration_date: string | null;
+  renewal_notice_deadline: string | null;
+  days_until_expiration: number | null;
+}
+
+export interface RenewalsDashboardData {
+  upcoming_expirations: RenewalContract[];
+}
+
 export interface AnalysisSuggestion {
   id: string;
   start_index: number;
@@ -91,4 +140,25 @@ export interface TopFlaggedContract {
 export interface ComplianceDashboardSummary {
   findings_by_category: FindingByCategory[];
   top_flagged_contracts: TopFlaggedContract[];
+}
+
+export interface ContractTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  content: string;
+  category: string | null;
+  organization_id: string;
+  created_by: { email: string };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DraftContractResponse {
+  draft_content: string;
+}
+
+export interface FinalizeDraftRequest {
+  filename: string;
+  content: string;
 }

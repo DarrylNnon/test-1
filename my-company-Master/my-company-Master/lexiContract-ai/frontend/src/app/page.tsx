@@ -1,136 +1,135 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import api from '@/lib/api';
-import { Contract, ContractVersion } from '@/types';
-import VersionSelector from '@/components/VersionSelector';
-import ContractViewer from '@/components/ContractViewer';
-import VersionDiffViewer from '@/components/VersionDiffViewer';
+import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '@/lib/api';
+import { RenewalsDashboardData, RenewalContract } from '@/types';
+import Link from 'next/link';
 
-export default function NegotiationRoomPage() {
-  const params = useParams();
-  const contractId = params.contractId as string;
+type FilterDays = 30 | 60 | 90;
 
-  const [contract, setContract] = useState<Contract | null>(null);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
-  const [compareMode, setCompareMode] = useState(false);
-  const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
-  const [diffText, setDiffText] = useState<string | null>(null);
-  const [isDiffLoading, setIsDiffLoading] = useState(false);
-  const [loading, setLoading] = useState(true);
+const RenewalsDashboardPage = () => {
+  const [data, setData] = useState<RenewalContract[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterDays>(90);
 
   useEffect(() => {
-    if (!contractId) return;
-
-    const fetchContract = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        setError(null);
-        const response = await api.get(`/contracts/${contractId}`);
-        const fetchedContract: Contract = response.data;
-        setContract(fetchedContract);
-
-        // Default to the latest version
-        if (fetchedContract.versions && fetchedContract.versions.length > 0) {
-          const latestVersion = fetchedContract.versions.sort((a, b) => b.version_number - a.version_number)[0];
-          setSelectedVersionId(latestVersion.id);
-          setCompareVersionId(latestVersion.id); // Initialize compare version as well
-        }
+        const response = await api.get<RenewalsDashboardData>('/management/dashboard');
+        setData(response.data.upcoming_expirations);
       } catch (err) {
-        setError('Failed to load contract. It may not exist or you may not have permission to view it.');
+        setError('Failed to load renewals data. Please try again.');
         console.error(err);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    fetchContract();
-  }, [contractId]);
+    fetchData();
+  }, []);
 
-  useEffect(() => {
-    if (!compareMode || !selectedVersionId || !compareVersionId || selectedVersionId === compareVersionId) {
-      setDiffText(null);
-      return;
+  const filteredData = useMemo(() => {
+    return data.filter(contract => 
+      contract.days_until_expiration !== null && contract.days_until_expiration <= filter
+    );
+  }, [data, filter]);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <div className="text-center py-10">Loading renewals...</div>;
     }
 
-    const fetchDiff = async () => {
-      try {
-        setIsDiffLoading(true);
-        const response = await api.get(`/contracts/${contractId}/diff`, {
-          params: {
-            from_version_id: selectedVersionId,
-            to_version_id: compareVersionId,
-          },
-          responseType: 'text', // Expect plain text from the diff endpoint
-        });
-        setDiffText(response.data);
-      } catch (err) {
-        console.error("Failed to fetch diff", err);
-        setDiffText("Error: Could not load comparison.");
-      } finally {
-        setIsDiffLoading(false);
-      }
-    };
+    if (error) {
+      return <div className="text-red-500 text-center py-10">{error}</div>;
+    }
 
-    fetchDiff();
-  }, [compareMode, selectedVersionId, compareVersionId, contractId]);
+    if (filteredData.length === 0) {
+      return <div className="text-gray-500 text-center py-10">No contracts are up for renewal in the selected timeframe.</div>;
+    }
 
-  const selectedVersion = contract?.versions.find(v => v.id === selectedVersionId);
-
-  const toggleCompareMode = () => {
-    const newMode = !compareMode;
-    setCompareMode(newMode);
-    if (!newMode) setDiffText(null); // Clear diff when exiting compare mode
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contract</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires In</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiration Date</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Renewal Notice Deadline</th>
+              <th scope="col" className="relative px-6 py-3"><span className="sr-only">View</span></th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredData.map((contract) => (
+              <tr key={contract.id}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{contract.filename}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{contract.days_until_expiration} days</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {contract.expiration_date ? new Date(contract.expiration_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {contract.renewal_notice_deadline ? new Date(contract.renewal_notice_deadline + 'T00:00:00').toLocaleDateString() : 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <Link href={`/dashboard/contracts/${contract.id}`} className="text-indigo-600 hover:text-indigo-900">
+                    View
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   return (
-    <div className="py-10">
-      <header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {contract && <h1 className="text-3xl font-bold leading-tight text-gray-900">{contract.filename}</h1>}
-          <p className="text-sm text-gray-500 mt-1">Negotiation Room</p>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="sm:flex sm:items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-xl font-semibold text-gray-900">Renewals Dashboard</h1>
+          <p className="mt-2 text-sm text-gray-700">
+            Manage contracts that are approaching their expiration or renewal dates.
+          </p>
         </div>
-      </header>
-      <main>
-        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-          <div className="px-4 py-8 sm:px-0">
-            {loading && <div className="text-center p-6">Loading contract...</div>}
-            {error && <div className="text-center p-6 text-red-500">{error}</div>}
-            {contract && (
-              <div className="space-y-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    {compareMode ? 'Compare Versions' : `Viewing Version ${selectedVersion?.version_number}`}
-                  </h2>
-                  <button
-                    onClick={toggleCompareMode}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  >
-                    {compareMode ? 'Exit Compare Mode' : 'Compare Versions'}
-                  </button>
-                </div>
+      </div>
 
-                {compareMode ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <VersionSelector versions={contract.versions} selectedVersionId={selectedVersionId!} onVersionChange={setSelectedVersionId} />
-                    <VersionSelector versions={contract.versions} selectedVersionId={compareVersionId!} onVersionChange={setCompareVersionId} />
-                  </div>
-                ) : (
-                  selectedVersion && <VersionSelector versions={contract.versions} selectedVersionId={selectedVersion.id} onVersionChange={setSelectedVersionId} />
-                )}
-
-                {compareMode ? (
-                  isDiffLoading ? <div className="text-center p-6">Loading comparison...</div> : <VersionDiffViewer diffText={diffText!} />
-                ) : (
-                  selectedVersion ? <ContractViewer version={selectedVersion} /> : <div className="text-center p-6">Select a version to view.</div>
-                )}
-              </div>
-            )}
+      <div className="mt-4">
+        <div className="sm:hidden">
+          <label htmlFor="tabs" className="sr-only">Select a tab</label>
+          <select id="tabs" name="tabs" className="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500" defaultValue={filter} onChange={(e) => setFilter(Number(e.target.value) as FilterDays)}>
+            <option value={30}>Next 30 Days</option>
+            <option value={60}>Next 60 Days</option>
+            <option value={90}>Next 90 Days</option>
+          </select>
+        </div>
+        <div className="hidden sm:block">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              {( [30, 60, 90] as FilterDays[] ).map((days) => (
+                <button key={days} onClick={() => setFilter(days)} className={`${filter === days ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                  Next {days} Days
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
-      </main>
+      </div>
+
+      <div className="mt-8 flex flex-col">
+        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+              {renderContent()}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default RenewalsDashboardPage;

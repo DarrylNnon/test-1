@@ -1,4 +1,4 @@
-import { test, expect, request } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test.describe('AI-Powered Contract Drafting Flow', () => {
   const uniqueId = Date.now();
@@ -6,33 +6,20 @@ test.describe('AI-Powered Contract Drafting Flow', () => {
   const adminEmail = `admin_draft_${uniqueId}@lexicontract.ai`;
   const adminPassword = 'aSecurePassword123';
 
-  test.beforeAll(async ({ browser, request: apiRequest }) => {
-    // Register Admin
-    const page = await browser.newPage();
-    await page.goto('/register');
-    await page.getByPlaceholder('Email address').fill(adminEmail);
-    await page.getByPlaceholder('Password').fill(adminPassword);
-    await page.getByPlaceholder('Organization Name').fill(orgName);
-    await page.getByRole('button', { name: 'Create Account' }).click();
-    await expect(page).toHaveURL('/login');
-
-    // Login and get token
-    await page.getByPlaceholder('Email address').fill(adminEmail);
-    await page.getByPlaceholder('Password').fill(adminPassword);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('/');
-    const token = await page.evaluate(() => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]);
-
-    // Activate subscription
-    await apiRequest.patch('/api/v1/testing/update-subscription', {
-      headers: { Authorization: `Bearer ${token}` },
-      data: { status: 'active' },
+  test.beforeAll(async ({ request }) => {
+    // Register a new user and organization for this test run.
+    // This user will be an admin by default.
+    const regResponse = await request.post('http://localhost:8000/api/v1/auth/register', {
+      data: {
+        email: adminEmail,
+        password: adminPassword,
+        organization_name: orgName,
+      },
     });
-
-    await page.close();
+    expect(regResponse.ok()).toBeTruthy();
   });
 
-  test('Admin should be able to manage templates and draft a contract', async ({ page }) => {
+  test('Admin should be able to create a template, draft a contract, and finalize it', async ({ page, request }) => {
     // 1. Login as admin
     await page.goto('/login');
     await page.getByPlaceholder('Email address').fill(adminEmail);
@@ -40,53 +27,57 @@ test.describe('AI-Powered Contract Drafting Flow', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page).toHaveURL('/');
 
-    // 2. Navigate to Templates page and create a new template
+    // As this is a test environment, we'll get the token to activate the subscription
+    const token = await page.evaluate(() => document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1]);
+    expect(token).toBeDefined();
+
+    // 2. Activate subscription via a testing utility endpoint to access premium features
+    const subResponse = await request.patch('/api/v1/testing/update-subscription', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { status: 'active' },
+    });
+    expect(subResponse.ok()).toBeTruthy();
+
+    // 3. Navigate to Templates page and create a new template
     await page.getByRole('link', { name: 'Templates' }).click();
-    await expect(page).toHaveURL('/templates');
+    await expect(page).toHaveURL('/dashboard/templates');
     await page.getByRole('button', { name: 'Add Template' }).click();
 
-    const templateTitle = `NDA Template ${uniqueId}`;
-    const templateContent = `This Non-Disclosure Agreement is between {{ party_a }} and {{ party_b }}.`;
+    const templateTitle = `Standard MSA Template ${uniqueId}`;
+    const templateContent = `This Master Services Agreement is between {{ our_company_name }} and {{ counterparty_name }}.`;
     await page.getByLabel('Title').fill(templateTitle);
     await page.getByLabel('Content').fill(templateContent);
     await page.getByRole('button', { name: 'Save Template' }).click();
-
-    // 3. Verify template creation
     await expect(page.getByRole('heading', { name: templateTitle })).toBeVisible();
-    await expect(page.getByText(templateContent)).toBeVisible();
 
-    // 4. Navigate to Drafting page
+    // 4. Navigate to Drafting page and select the new template
     await page.getByRole('link', { name: 'Drafting' }).click();
-    await expect(page).toHaveURL('/drafting');
-    await expect(page.getByRole('heading', { name: 'Draft a New Contract' })).toBeVisible();
-
-    // 5. Select the newly created template
+    await expect(page).toHaveURL('/dashboard/drafting');
     await page.getByRole('button', { name: templateTitle }).click();
-    await expect(page.getByRole('heading', { name: '2. Fill in the Details' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `Step 2: Fill in the Details for "${templateTitle}"` })).toBeVisible();
 
-    // 6. Fill in the variables
-    const partyA = 'InnovateCorp';
-    const partyB = 'Partner LLC';
-    await expect(page.getByLabel('party_a')).toBeVisible();
-    await expect(page.getByLabel('party_b')).toBeVisible();
+    // 5. Fill in the variables
+    const ourCompany = 'LexiContract AI Inc.';
+    const counterparty = 'Global Tech Solutions';
+    await page.getByLabel('Our Company Name').fill(ourCompany);
+    await page.getByLabel('Counterparty Name').fill(counterparty);
 
-    await page.getByLabel('party_a').fill(partyA);
-    await page.getByLabel('party_b').fill(partyB);
+    // 6. Generate the preview
+    await page.getByRole('button', { name: 'Generate Preview' }).click();
+    await expect(page.getByRole('heading', { name: 'Step 3: Preview & Create Contract' })).toBeVisible();
 
-    // 7. Generate the contract
-    await page.getByRole('button', { name: 'Generate Contract' }).click();
+    // 7. Verify the preview content
+    const expectedDraft = `This Master Services Agreement is between ${ourCompany} and ${counterparty}.`;
+    await expect(page.locator('.font-mono')).toHaveText(expectedDraft);
 
-    // 8. Verify the generated content
-    await expect(page.getByRole('heading', { name: '3. Contract Draft' })).toBeVisible();
-    const draftContainer = page.locator('div', { hasText: 'Contract Draft' }).locator('div').last();
-    const expectedDraft = `This Non-Disclosure Agreement is between ${partyA} and ${partyB}.`;
-    await expect(draftContainer).toHaveText(expectedDraft);
+    // 8. Finalize the contract
+    const finalizePromise = page.waitForResponse(resp => resp.url().includes('/api/v1/drafting/finalize') && resp.status() === 201);
+    await page.getByRole('button', { name: 'Create Contract' }).click();
+    const finalizeResponse = await finalizePromise;
+    expect(finalizeResponse.ok()).toBeTruthy();
 
-    // 9. Go back and delete the template to clean up
-    await page.getByRole('link', { name: 'Templates' }).click();
-    await expect(page).toHaveURL('/templates');
-    page.on('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'Delete' }).click();
-    await expect(page.getByRole('heading', { name: templateTitle })).not.toBeVisible();
+    // 9. Verify redirection to the new contract's page
+    await expect(page).toHaveURL(/\/dashboard\/contracts\/[a-f0-9-]+/);
+    await expect(page.getByRole('heading', { name: `${templateTitle}.txt` })).toBeVisible();
   });
 });

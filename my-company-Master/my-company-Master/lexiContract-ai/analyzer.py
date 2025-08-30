@@ -3,6 +3,7 @@ import io
 import re
 from pypdf import PdfReader
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 from sqlalchemy.orm import joinedload
 
@@ -75,6 +76,77 @@ def _handle_standard_rule(rule, full_text):
     except re.error as e:
         print(f"Error processing regex for rule '{rule.name}': {e}")
     return suggestions
+
+def _extract_post_signature_data(db: SessionLocal, contract: models.Contract, full_text: str):
+    """
+    Scans the text of a signed contract to extract key dates (milestones) and
+    actionable commitments (obligations). This is a simplified implementation
+    using regular expressions. A production system would use a more sophisticated
+    NLP model fine-tuned for legal entity and date recognition.
+    """
+    print(f"Running post-signature extraction for signed contract {contract.id}")
+
+    # --- 1. Milestone (Key Date) Extraction ---
+    # This regex is a simplified approach to find common date formats.
+    # A library like `dateparser` would be more robust in a real-world scenario.
+    date_pattern = r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b'
+
+    # Find Effective Date
+    effective_date_context = re.search(r'(?:effective|commencement) date(?: of)?\s*([^\n.]{1,50})', full_text, re.IGNORECASE)
+    if effective_date_context:
+        date_match = re.search(date_pattern, effective_date_context.group(1))
+        if date_match:
+            try:
+                parsed_date = datetime.strptime(date_match.group(0), '%B %d, %Y').date()
+                crud.create_contract_milestone(db, milestone=schemas.ContractMilestoneCreate(
+                    milestone_type=schemas.MilestoneType.EFFECTIVE_DATE,
+                    milestone_date=parsed_date,
+                    description=f"Extracted from: '{effective_date_context.group(0).strip()}'",
+                    created_by_ai=True
+                ), contract_id=contract.id)
+            except ValueError:
+                print(f"Could not parse date: {date_match.group(0)}")
+
+    # Find Expiration Date and calculate Renewal Notice Deadline
+    expiration_date_context = re.search(r'(?:expires on|expiration date|term ends on)\s*([^\n.]{1,50})', full_text, re.IGNORECASE)
+    if expiration_date_context:
+        date_match = re.search(date_pattern, expiration_date_context.group(1))
+        if date_match:
+            try:
+                expiration_date = datetime.strptime(date_match.group(0), '%B %d, %Y').date()
+                crud.create_contract_milestone(db, milestone=schemas.ContractMilestoneCreate(
+                    milestone_type=schemas.MilestoneType.EXPIRATION_DATE,
+                    milestone_date=expiration_date,
+                    description=f"Extracted from: '{expiration_date_context.group(0).strip()}'",
+                    created_by_ai=True
+                ), contract_id=contract.id)
+
+                # Look for a notice period to calculate the renewal deadline
+                notice_period_match = re.search(r'notice of non-renewal.*?(\d+)\s+days', full_text, re.IGNORECASE)
+                if notice_period_match:
+                    days = int(notice_period_match.group(1))
+                    notice_deadline = expiration_date - timedelta(days=days)
+                    crud.create_contract_milestone(db, milestone=schemas.ContractMilestoneCreate(
+                        milestone_type=schemas.MilestoneType.RENEWAL_NOTICE_DEADLINE,
+                        milestone_date=notice_deadline,
+                        description=f"Calculated as {days} days before expiration.",
+                        created_by_ai=True
+                    ), contract_id=contract.id)
+            except ValueError:
+                print(f"Could not parse date: {date_match.group(0)}")
+
+    # --- 2. Obligation Extraction ---
+    # This regex captures simple sentences containing obligation keywords.
+    obligation_pattern = r'([A-Z][^.!?]*?\b(?:shall|must|agrees to|is responsible for)\b[^.!?]*\.)'
+    for match in re.finditer(obligation_pattern, full_text):
+        obligation_text = match.group(1).strip()
+        # Simple party detection heuristic
+        responsible_party = schemas.ResponsibleParty.OUR_COMPANY if re.search(r'\b(Company|Provider|LexiContract)\b', obligation_text, re.IGNORECASE) else schemas.ResponsibleParty.COUNTERPARTY
+        crud.create_tracked_obligation(db, obligation=schemas.TrackedObligationCreate(
+            obligation_text=obligation_text,
+            responsible_party=responsible_party,
+            created_by_ai=True
+        ), contract_id=contract.id)
 
 def analyze_contract(version_id: str, file_contents: bytes, filename: str):
     """
@@ -162,6 +234,12 @@ def analyze_contract(version_id: str, file_contents: bytes, filename: str):
 
         crud.update_contract_version_analysis(db, version_id=version_id, full_text=full_text, suggestions=all_suggestions)
         print(f"Completed analysis for contract version: {version_id}")
+
+        # --- NEW: Post-Signature Extraction ---
+        # This runs after the main analysis is complete, and only for signed contracts.
+        db_contract = db_version.contract
+        if db_contract.negotiation_status == models.NegotiationStatus.SIGNED:
+            _extract_post_signature_data(db, contract=db_contract, full_text=full_text)
 
         # After successful analysis, index the document for full-text search
         # Re-fetch the contract to ensure we have the latest state

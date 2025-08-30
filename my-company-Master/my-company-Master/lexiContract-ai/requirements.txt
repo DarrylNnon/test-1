@@ -11,3 +11,4 @@ pypdf
 websockets
 stripe
 openai
+apscheduler

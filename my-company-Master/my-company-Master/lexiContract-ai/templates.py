@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 import uuid
 from typing import List
 
-from core import crud, models, schemas, ai_services
+from core import crud, models, schemas
 from api.v1 import dependencies
 from core.database import get_db
+from core.ai_services import ai_service
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ def create_contract_template(
 ):
     """
     Create a new contract template in the organization's library.
-    Only accessible by administrators.
+    Only accessible by administrators with an active subscription.
     """
     dependencies.get_active_subscriber(current_user)
     return crud.create_contract_template(
@@ -53,7 +54,7 @@ def read_contract_template(
         db, template_id=template_id, organization_id=current_user.organization_id
     )
     if db_template is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return db_template
 
 @router.patch("/{template_id}", response_model=schemas.ContractTemplate)
@@ -64,15 +65,14 @@ def update_contract_template(
     current_user: models.User = Depends(dependencies.get_current_admin_user),
 ):
     """
-    Update an existing contract template.
-    Only accessible by administrators.
+    Update an existing contract template. Only accessible by administrators.
     """
     dependencies.get_active_subscriber(current_user)
     db_template = crud.update_contract_template(
         db, template_id=template_id, template_update=template_update, organization_id=current_user.organization_id
     )
     if db_template is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return db_template
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -82,35 +82,34 @@ def delete_contract_template(
     current_user: models.User = Depends(dependencies.get_current_admin_user),
 ):
     """
-    Delete a contract template from the library.
-    Only accessible by administrators.
+    Delete a contract template from the library. Only accessible by administrators.
     """
     dependencies.get_active_subscriber(current_user)
     deleted_template = crud.delete_contract_template(db, template_id=template_id, organization_id=current_user.organization_id)
     if deleted_template is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return
 
 @router.post("/{template_id}/draft", response_model=schemas.DraftContractResponse)
 async def draft_contract_from_template(
     template_id: uuid.UUID,
-    draft_request: schemas.DraftContractRequest,
+    request: schemas.DraftContractRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(dependencies.get_active_subscriber),
 ):
     """
-    Generates a new contract draft by filling a template with user-provided variables.
-    This uses the AI service to perform the generation.
+    Generates a contract draft by populating a template with user-provided variables.
+    This endpoint returns the rendered text for user preview.
     """
     db_template = crud.get_contract_template_by_id(
         db, template_id=template_id, organization_id=current_user.organization_id
     )
     if db_template is None:
-        raise HTTPException(status_code=404, detail="Template not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
-    draft_content = await ai_services.ai_service.generate_contract_from_template(
+    draft_content = await ai_service.generate_contract_from_template(
         template_content=db_template.content,
-        variables=draft_request.variables
+        variables=request.variables
     )
 
     return schemas.DraftContractResponse(draft_content=draft_content)

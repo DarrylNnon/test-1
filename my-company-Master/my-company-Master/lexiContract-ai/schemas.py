@@ -126,6 +126,39 @@ class Notification(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+# --- Notification Service Schemas ---
+
+class NotificationType(str, enum.Enum):
+    EMAIL = "Email"
+    IN_APP = "InApp"
+
+class NotificationStatus(str, enum.Enum):
+    PENDING = "Pending"
+    SENT = "Sent"
+    FAILED = "Failed"
+
+class NotificationBase(BaseModel):
+    details: Optional[str] = None
+
+class NotificationCreate(NotificationBase):
+    user_id: uuid.UUID
+    contract_id: uuid.UUID
+    milestone_id: int
+    send_at: datetime
+
+class Notification(NotificationBase):
+    id: int
+    user_id: uuid.UUID
+    contract_id: uuid.UUID
+    milestone_id: int
+    notification_type: NotificationType
+    status: NotificationStatus
+    send_at: datetime
+    sent_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 # --- Clause Library Schemas ---
 class ClauseBase(BaseModel):
     title: str
@@ -199,6 +232,34 @@ class CompliancePlaybook(CompliancePlaybookBase):
 class OrganizationPlaybookToggle(BaseModel):
     playbook_id: uuid.UUID
     enable: bool
+
+# --- Contract Template Schemas ---
+class ContractTemplateBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    content: str # The template body with placeholders like {{variable_name}}
+    category: Optional[str] = None
+
+class ContractTemplateCreate(ContractTemplateBase):
+    pass
+
+class ContractTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+
+class ContractTemplate(ContractTemplateBase):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    created_by_id: uuid.UUID
+    created_by: User
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # --- Contract Template Schemas ---
 class ContractTemplateBase(BaseModel):
     title: str
@@ -228,6 +289,10 @@ class ContractTemplate(ContractTemplateBase):
 # --- AI Drafting Schemas ---
 class DraftContractRequest(BaseModel):
     variables: Dict[str, str]
+
+class FinalizeDraftRequest(BaseModel):
+    filename: str
+    content: str
 
 class DraftContractResponse(BaseModel):
     draft_content: str

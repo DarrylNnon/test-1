@@ -76,6 +76,24 @@ class Organization(Base):
         secondary=organization_playbook_association,
         back_populates="enabled_by_organizations")
 
+# --- Contract Template Model ---
+class ContractTemplate(Base):
+    __tablename__ = "contract_templates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    content = Column(Text, nullable=False) # The template body with placeholders like {{variable_name}}
+    category = Column(String, nullable=True, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    organization = relationship("Organization", back_populates="contract_templates")
+    created_by = relationship("User")
+
+
 class User(Base):
     __tablename__ = "users"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -272,3 +290,31 @@ class PlaybookRule(Base):
 
     playbook_id = Column(UUID(as_uuid=True), ForeignKey("compliance_playbooks.id"), nullable=False)
     playbook = relationship("CompliancePlaybook", back_populates="rules")
+
+    # --- Notification Service Models ---
+
+class NotificationType(enum.Enum):
+    EMAIL = "Email"
+    IN_APP = "InApp"
+
+class NotificationStatus(enum.Enum):
+    PENDING = "Pending"
+    SENT = "Sent"
+    FAILED = "Failed"
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    contract_id = Column(UUID(as_uuid=True), ForeignKey("contracts.id"), nullable=False)
+    milestone_id = Column(Integer, ForeignKey("contract_milestones.id"), nullable=False)
+    notification_type = Column(Enum(NotificationType), nullable=False, default=NotificationType.EMAIL)
+    status = Column(Enum(NotificationStatus), nullable=False, default=NotificationStatus.PENDING)
+    send_at = Column(DateTime(timezone=True), nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    details = Column(Text, nullable=True)
+
+    user = relationship("User")
+    contract = relationship("Contract")
+    milestone = relationship("ContractMilestone")

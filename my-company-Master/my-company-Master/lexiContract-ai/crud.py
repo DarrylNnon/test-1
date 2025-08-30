@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 import uuid
 import difflib
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List, Optional
 import json
 from sqlalchemy import func
@@ -10,6 +11,49 @@ from . import models, schemas, security
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
+
+# --- Notification Service CRUD ---
+
+def create_notification(db: Session, notification: schemas.NotificationCreate) -> models.Notification:
+    """Creates a new notification."""
+    db_notification = models.Notification(**notification.model_dump())
+    db.add(db_notification)
+    db.commit()
+    db.refresh(db_notification)
+    return db_notification
+
+def check_if_notification_exists(db: Session, user_id: uuid.UUID, milestone_id: int, details_substring: str) -> bool:
+    """
+    Checks if a notification already exists for a specific user, milestone,
+    and containing a specific detail string (to differentiate windows like '90-day').
+    """
+    return db.query(models.Notification).filter(
+        models.Notification.user_id == user_id,
+        models.Notification.milestone_id == milestone_id,
+        models.Notification.details.like(f"%{details_substring}%")
+    ).first() is not None
+
+def get_pending_notifications(db: Session) -> List[Type[models.Notification]]:
+    """Retrieves all notifications with a 'Pending' status ready to be sent."""
+    return db.query(models.Notification).options(
+        joinedload(models.Notification.user),
+        joinedload(models.Notification.contract),
+        joinedload(models.Notification.milestone)
+    ).filter(
+        models.Notification.status == models.NotificationStatus.PENDING,
+        models.Notification.send_at <= func.now()
+    ).all()
+
+def update_notification_status(db: Session, notification_id: int, status: schemas.NotificationStatus) -> Optional[models.Notification]:
+    """Updates the status of a notification and sets the sent_at timestamp if 'Sent'."""
+    db_notification = db.query(models.Notification).filter(models.Notification.id == notification_id).first()
+    if db_notification:
+        db_notification.status = status
+        if status == schemas.NotificationStatus.SENT:
+            db_notification.sent_at = datetime.datetime.now(datetime.timezone.utc)
+        db.commit()
+        db.refresh(db_notification)
+    return db_notification
 
 def get_organization_by_name(db: Session, name: str):
     return db.query(models.Organization).filter(models.Organization.name == name).first()
@@ -366,6 +410,55 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
         db.commit()
     return db_template
 
+# --- Contract Template CRUD ---
+
+def create_contract_template(db: Session, template: schemas.ContractTemplateCreate, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.ContractTemplate:
+    db_template = models.ContractTemplate(
+        **template.model_dump(),
+        created_by_id=user_id,
+        organization_id=organization_id
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    return db_template
+
+def get_contract_templates_by_organization(db: Session, organization_id: uuid.UUID) -> List[models.ContractTemplate]:
+    return (
+        db.query(models.ContractTemplate)
+        .options(joinedload(models.ContractTemplate.created_by))
+        .filter(models.ContractTemplate.organization_id == organization_id)
+        .order_by(models.ContractTemplate.title)
+        .all()
+    )
+
+def get_contract_template_by_id(db: Session, template_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
+    return (
+        db.query(models.ContractTemplate)
+        .options(joinedload(models.ContractTemplate.created_by))
+        .filter(
+            models.ContractTemplate.id == template_id, models.ContractTemplate.organization_id == organization_id
+        )
+        .first()
+    )
+
+def update_contract_template(db: Session, template_id: uuid.UUID, template_update: schemas.ContractTemplateUpdate, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
+    db_template = get_contract_template_by_id(db, template_id=template_id, organization_id=organization_id)
+    if db_template:
+        update_data = template_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_template, key, value)
+        db.add(db_template)
+        db.commit()
+        db.refresh(db_template)
+    return db_template
+
+def delete_contract_template(db: Session, template_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
+    db_template = get_contract_template_by_id(db, template_id=template_id, organization_id=organization_id)
+    if db_template:
+        db.delete(db_template)
+        db.commit()
+    return db_template
 # --- Analytics CRUD ---
 
 def get_analytics_kpis(db: Session, organization_id: uuid.UUID) -> dict:
