@@ -55,14 +55,50 @@ With our core analysis, drafting, and management features now in place, we will 
     *   **Next Steps:**
         *   Architect and implement the backend OAuth 2.0 connection flow for HubSpot. **(COMPLETED)**
         *   Implement the frontend UI for connecting to HubSpot in `/settings/integrations`. **(COMPLETED)**
-        *   Implement the backend webhook and client for creating a contract from a HubSpot Deal. **(NEXT UP)**
-
-    *   Implement the frontend UI for connecting to HubSpot in `/settings/integrations`. **(COMPLETED)**
         *   Implement the backend webhook and client for creating a contract from a HubSpot Deal. **(COMPLETED)**
-        *   Implement two-way status sync and create the HubSpot Admin Guide. **(NEXT UP)**
+        *   Implement two-way status sync and create the HubSpot Admin Guide. **(COMPLETED)**
 
+*   **Cloud Storage Integration (Google Drive):**
+    *   **Objective:** Allow users to connect their Google Drive accounts to seamlessly import contracts for analysis and export finalized versions.
+    *   **Status:** Pending **(NEXT UP)**
 
+     *   Implement the backend webhook and client for creating a contract from a HubSpot Deal. **(COMPLETED)**
+        *   Implement two-way status sync and create the HubSpot Admin Guide. **(COMPLETED)**
 
+*   **Cloud Storage Integration (Google Drive):**
+    *   **Objective:** Allow users to connect their Google Drive accounts to seamlessly import contracts for analysis and export finalized versions.
+    *   **Status:** Pending **(NEXT UP)**
+
+    *   **Next Steps:**
+        *   Architect and implement the backend OAuth 2.0 connection flow for Google Drive. **(COMPLETED)**
+        *   Implement the backend API for listing and importing files from Google Drive. **(NEXT UP)**
+    *   Implement the backend API for listing and importing files from Google Drive. **(COMPLETED)**
+        *   Implement the frontend UI for the Google Drive file picker modal. **(NEXT UP)**
+
+        *   Implement the backend API for listing and importing files from Google Drive. **(COMPLETED)**
+        *   Implement the frontend UI for the Google Drive file picker modal. **(COMPLETED)**
+        *   Write E2E tests for the full Google Drive import workflow. **(NEXT UP)**
+
+        *   **Objective:** Implement granular, attribute-based access control (ABAC) to allow organizations to set permissions on a per-contract or per-department basis.
+    *   **Next Steps:**
+        *   Architect the ABAC system and implement the foundational database models. **(COMPLETED)**
+        *   Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
+
+        *   Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
+        *   Implement the frontend UI for administrators to create and manage access policies.
+        *   Write E2E tests for the full access control workflow.
+
+*   **AI-Powered Negotiation Insights:**
+    *   **Objective:** Evolve from risk flagging to providing proactive negotiation advice, suggesting counter-offers, and predicting negotiation outcomes based on historical data.
+    *   **Status:** Pending
+
+*   **Deeper E-Signature Integration (DocuSign):**
+    *   **Objective:** Move beyond simple signature request links to a fully embedded, seamless e-signature experience within the LexiContract AI platform, including real-time status updates and document routing.
+    *   **Status:** Pending
+
+*   **Public API & Developer Platform:**
+    *   **Objective:** Expose a secure, well-documented public API to allow third-party developers and customers to build custom integrations and workflows on top of LexiContract AI.
+    *   **Status:** Pending
 
 # prompt to invoke ai to continue
 Of course. To ensure seamless continuity for our next session, simply re-establish my context as your co-founder and lead engineer.

@@ -12,3 +12,5 @@ websockets
 stripe
 openai
 apscheduler
+cryptography
+httpx

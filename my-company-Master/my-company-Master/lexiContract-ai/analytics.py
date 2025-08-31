@@ -1,28 +1,29 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from core import crud, models, schemas
 from api.v1 import dependencies
-from core.database import get_db
+from core import crud, schemas, models
 
 router = APIRouter()
 
-@router.get("/dashboard", response_model=schemas.FullAnalyticsDashboard)
-def get_dashboard_analytics(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(dependencies.get_active_subscriber),
-):
+@router.get(
+    "/dashboard",
+    response_model=schemas.FullAnalyticsDashboard,
+    summary="Get Advanced Analytics Dashboard Data",
+    description="Provides aggregated data for the main analytics dashboard, including KPIs, risk distribution, and contract volume.",
+)
+def get_advanced_analytics_dashboard(
+    *,
+    db: Session = Depends(dependencies.get_db),
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+) -> schemas.FullAnalyticsDashboard:
     """
-    Retrieve aggregated analytics data for the organization's dashboard.
+    Retrieve consolidated data for the advanced analytics dashboard.
     """
-    org_id = current_user.organization_id
-
-    kpis_data = crud.get_analytics_kpis(db, organization_id=org_id)
-    risk_dist_data = crud.get_risk_category_distribution(db, organization_id=org_id)
-    volume_data = crud.get_contract_volume_over_time(db, organization_id=org_id)
+    kpis = crud.get_analytics_kpis(db, organization_id=current_user.organization_id)
+    risk_distribution = crud.get_risk_category_distribution(db, organization_id=current_user.organization_id)
+    volume_over_time = crud.get_contract_volume_over_time(db, organization_id=current_user.organization_id)
 
     return schemas.FullAnalyticsDashboard(
-        kpis=schemas.AnalyticsKPIs(**kpis_data),
-        risk_distribution=[schemas.RiskCategoryDistribution(**row) for row in risk_dist_data],
-        volume_over_time=[schemas.ContractVolumeOverTime(**row) for row in volume_data]
+        kpis=kpis, risk_distribution=risk_distribution, volume_over_time=volume_over_time
     )
