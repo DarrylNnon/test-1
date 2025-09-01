@@ -1,5 +1,5 @@
 import re
-from typing import Dict
+from typing import Dict, Optional
 from openai import AsyncOpenAI, APIError
 from fastapi import HTTPException, status
 
@@ -69,6 +69,46 @@ class AIService:
         except APIError as e:
             print(f"OpenAI API Error: {e}")
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI service is currently unavailable.")
+
+    async def generate_clause(self, prompt: str, context: Optional[Dict] = None) -> str:
+        """
+        Generates a contract clause from a natural language prompt using an LLM.
+        """
+        if not self.client:
+            return self._mock_generate_clause(prompt)
+
+        return await self._real_generate_clause(prompt, context or {})
+
+    def _mock_generate_clause(self, prompt: str) -> str:
+        """A simple mock implementation for clause generation."""
+        print(f"AIService: Generating clause in MOCK mode for prompt: '{prompt}'")
+        return f"This is a mock-generated clause in response to the prompt: '{prompt}'. It should be compliant and well-drafted."
+
+    async def _real_generate_clause(self, user_prompt: str, context: Dict) -> str:
+        """Generates a clause using the OpenAI API."""
+        print(f"AIService: Generating clause with OpenAI for prompt: '{user_prompt}'")
+        
+        system_prompt = (
+            "You are a legal assistant AI specializing in contract law. Your task is to generate a clear, concise, and legally sound contract clause based on the user's request. "
+            "The clause should be neutral and suitable for a standard commercial agreement. "
+            "The final output must be only the generated clause text, with no conversational filler, preambles, or explanations."
+        )
+        
+        full_prompt = f"User Request: \"{user_prompt}\"\n\nContext:\n- Contract Type: {context.get('contract_type', 'General Commercial')}"
+
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4-turbo-preview",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": full_prompt},
+                ],
+                temperature=0.2, # Low temperature for more predictable, formal output
+            )
+            return response.choices[0].message.content.strip()
+        except APIError as e:
+            print(f"OpenAI API Error: {e}")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="AI clause generation service is currently unavailable.")
 
 # Create a single, shared instance of the service
 ai_service = AIService(api_key=settings.OPENAI_API_KEY)

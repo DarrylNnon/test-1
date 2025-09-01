@@ -35,6 +35,32 @@ export interface Contract {
   versions: ContractVersion[];
   // This is a frontend-only property for search results
   highlighted_snippet?: string | null;
+  signature_status: SignatureStatus;
+  docusign_envelope_id: string | null;
+  signers: Signer[];
+}
+
+export enum SignatureStatus {
+  Draft = "draft",
+  Sent = "sent",
+  Completed = "completed",
+  Voided = "voided",
+}
+
+export enum SignerStatus {
+  Created = "created",
+  Sent = "sent",
+  Delivered = "delivered",
+  Signed = "signed",
+  Declined = "declined",
+}
+
+export interface Signer {
+  id: string;
+  name: string;
+  email: string;
+  signing_order: number;
+  status: SignerStatus;
 }
 
 // --- Post-Signature Management Types ---
@@ -95,6 +121,10 @@ export interface AnalysisSuggestion {
   comment: string;
   risk_category: string;
   status: 'suggested' | 'accepted' | 'rejected';
+  negotiation_insight?: {
+    suggested_counter: string;
+    success_rate: number;
+  } | null;
 }
 
 export interface UserComment {
@@ -161,4 +191,15 @@ export interface DraftContractResponse {
 export interface FinalizeDraftRequest {
   filename: string;
   content: string;
+}
+
+// --- Access Control Types ---
+
+export interface AccessPolicy {
+  id: string;
+  name: string;
+  subject_attributes: Record<string, any>;
+  actions: string[];
+  resource_attributes: Record<string, any>;
+  effect: 'allow';
 }

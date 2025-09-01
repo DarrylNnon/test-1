@@ -1,63 +1,34 @@
-'use client';
+import { listApiKeys } from '@/lib/api';
+import ApiKeyManager from '@/components/ApiKeyManager';
+import { cookies } from 'next/headers';
 
-import useSWR from 'swr';
-import api from '@/lib/api';
-import KPICard from '@/components/analytics/KPICard';
-import RiskDistributionChart from '@/components/analytics/RiskDistributionChart';
-import VolumeOverTimeChart from '@/components/analytics/VolumeOverTimeChart';
-
-// Define the data structure based on the backend schema
-interface AnalyticsKPIs {
-  total_contracts: number;
-  contracts_in_progress: number;
-  average_cycle_time_days: number;
+async function fetchApiKeys() {
+  const cookieStore = cookies();
+  const token = cookieStore.get('token')?.value;
+  if (!token) {
+    return [];
+  }
+  try {
+    return await listApiKeys(token);
+  } catch (error) {
+    console.error("Failed to fetch API keys:", error);
+    return [];
+  }
 }
 
-interface RiskDistribution {
-  category: string;
-  count: number;
-}
-
-interface VolumeOverTime {
-  month: string;
-  count: number;
-}
-
-interface FullAnalyticsDashboard {
-  kpis: AnalyticsKPIs;
-  risk_distribution: RiskDistribution[];
-  volume_over_time: VolumeOverTime[];
-}
-
-const fetcher = (url: string) => api.get(url).then(res => res.data);
-
-export default function AnalyticsDashboardPage() {
-  const { data, error, isLoading } = useSWR<FullAnalyticsDashboard>('/api/v1/analytics/dashboard', fetcher);
-
-  if (error) return <div className="p-8 text-red-500">Failed to load analytics data. Please try again later.</div>;
-  if (isLoading) return <div className="p-8">Loading Dashboard...</div>;
-  if (!data) return <div className="p-8">No analytics data available.</div>;
-
-  const { kpis, risk_distribution, volume_over_time } = data;
+export default async function ApiKeysPage() {
+  const initialKeys = await fetchApiKeys();
 
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Advanced Analytics Dashboard</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="sm:flex sm:items-center">
+        <div className="sm:flex-auto">
+          <h1 className="text-xl font-semibold text-gray-900">API Keys</h1>
+          <p className="mt-2 text-sm text-gray-700">Manage API keys for programmatic access to the LexiContract AI platform.</p>
+        </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 mt-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <KPICard title="Total Contracts" value={kpis.total_contracts} description="All contracts in the system." />
-          <KPICard title="Contracts In Progress" value={kpis.contracts_in_progress} description="Currently in review or negotiation." />
-          <KPICard title="Avg. Cycle Time" value={`${kpis.average_cycle_time_days.toFixed(1)} days`} description="From creation to signature." />
-        </div>
-
-        {/* Charts */}
-        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <RiskDistributionChart data={risk_distribution} />
-          <VolumeOverTimeChart data={volume_over_time} />
-        </div>
+      <div className="mt-8">
+        <ApiKeyManager initialKeys={initialKeys} />
       </div>
     </div>
   );

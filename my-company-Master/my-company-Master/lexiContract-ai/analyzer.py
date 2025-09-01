@@ -2,6 +2,7 @@ import time
 import io
 import re
 from pypdf import PdfReader
+from sqlalchemy.orm import Session
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -247,6 +248,7 @@ def analyze_contract(version_id: str, file_contents: bytes, filename: str):
         if db_version_updated and db_version_updated.full_text:
             search_service.index_document(
                 contract_id=str(db_version_updated.contract_id),
+                version_id=str(db_version_updated.id),
                 text=db_version_updated.full_text,
                 organization_id=str(db_version_updated.contract.organization_id)
             )

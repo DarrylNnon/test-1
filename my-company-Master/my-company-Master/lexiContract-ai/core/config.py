@@ -7,6 +7,9 @@ class Settings:
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://user:password@db/app")
 
+    # Redis for Caching / Rate Limiting
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
     # JWT
     SECRET_KEY: str = os.getenv("SECRET_KEY", "a_super_secret_key_that_should_be_changed")
     ALGORITHM: str = "HS256"

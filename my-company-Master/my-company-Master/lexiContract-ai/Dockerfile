@@ -1,16 +1,20 @@
-# Stage 1: Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Use an official Node.js runtime as a parent image
+FROM node:18-slim
 
 # Set the working directory in the container
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Copy the requirements file into the container at /app
-# This ensures we only re-run pip install if our dependencies change
-COPY requirements.txt .
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Install app dependencies
+RUN npm install
 
-# Copy the rest of the application's code into the container at /app
-# This includes main.py, core/, api/, etc.
+# Bundle app source
 COPY . .
+
+# Your app binds to port 1234
+EXPOSE 1234
+
+# Define the command to run your app
+CMD [ "npm", "start" ]

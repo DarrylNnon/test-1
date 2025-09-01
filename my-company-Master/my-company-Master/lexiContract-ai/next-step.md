@@ -60,44 +60,76 @@ With our core analysis, drafting, and management features now in place, we will 
 
 *   **Cloud Storage Integration (Google Drive):**
     *   **Objective:** Allow users to connect their Google Drive accounts to seamlessly import contracts for analysis and export finalized versions.
-    *   **Status:** Pending **(NEXT UP)**
-
-     *   Implement the backend webhook and client for creating a contract from a HubSpot Deal. **(COMPLETED)**
-        *   Implement two-way status sync and create the HubSpot Admin Guide. **(COMPLETED)**
-
-*   **Cloud Storage Integration (Google Drive):**
-    *   **Objective:** Allow users to connect their Google Drive accounts to seamlessly import contracts for analysis and export finalized versions.
-    *   **Status:** Pending **(NEXT UP)**
-
     *   **Next Steps:**
         *   Architect and implement the backend OAuth 2.0 connection flow for Google Drive. **(COMPLETED)**
-        *   Implement the backend API for listing and importing files from Google Drive. **(NEXT UP)**
-    *   Implement the backend API for listing and importing files from Google Drive. **(COMPLETED)**
-        *   Implement the frontend UI for the Google Drive file picker modal. **(NEXT UP)**
-
         *   Implement the backend API for listing and importing files from Google Drive. **(COMPLETED)**
         *   Implement the frontend UI for the Google Drive file picker modal. **(COMPLETED)**
-        *   Write E2E tests for the full Google Drive import workflow. **(NEXT UP)**
+        *   Write E2E tests for the full Google Drive import workflow. **(PENDING)**
 
-        *   **Objective:** Implement granular, attribute-based access control (ABAC) to allow organizations to set permissions on a per-contract or per-department basis.
-    *   **Next Steps:**
-        *   Architect the ABAC system and implement the foundational database models. **(COMPLETED)**
-        *   Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
-
-        *   Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
-        *   Implement the frontend UI for administrators to create and manage access policies.
-        *   Write E2E tests for the full access control workflow.
+*   **Advanced Access Control (ABAC):**
+    *   **Status:** The ABAC feature set is fully developed, tested, and documented. **(COMPLETED)**
 
 *   **AI-Powered Negotiation Insights:**
     *   **Objective:** Evolve from risk flagging to providing proactive negotiation advice, suggesting counter-offers, and predicting negotiation outcomes based on historical data.
-    *   **Status:** Pending
+    *   **Next Steps:**
+        *   Architect the system for generating and storing negotiation insights. **(COMPLETED)**
+        *   Implement the `NegotiationOutcome` model and the background job for data ingestion. **(COMPLETED)**
+        *   Enhance the AI analyzer to generate predictive insights. **(COMPLETED)**
+        *   Update the frontend to display negotiation insights on suggestion cards. **(COMPLETED)**
 
 *   **Deeper E-Signature Integration (DocuSign):**
     *   **Objective:** Move beyond simple signature request links to a fully embedded, seamless e-signature experience within the LexiContract AI platform, including real-time status updates and document routing.
-    *   **Status:** Pending
+    *   **Next Steps:**
+        *   Architect the deep DocuSign integration, including OAuth, webhooks, and embedded signing. **(COMPLETED)**
+        *   Implement the backend OAuth 2.0 JWT Grant flow and DocuSign API client. **(COMPLETED)**
+        *   Implement the `Signer` model and the API endpoint for creating and sending a DocuSign envelope. **(COMPLETED)**
+        *   Build the frontend signature configuration modal. **(COMPLETED)**
+    *   **Status:** The deep e-signature feature set is fully developed, tested, and documented. **(COMPLETED)**
 
 *   **Public API & Developer Platform:**
     *   **Objective:** Expose a secure, well-documented public API to allow third-party developers and customers to build custom integrations and workflows on top of LexiContract AI.
+    *   **Next Steps:**
+        *   Architect the Public API, including authentication, versioning, and initial endpoints. **(COMPLETED)**
+        *   Implement the database models and API endpoints for generating and managing API keys. **(COMPLETED)**
+    *   **Status:** The Public API feature set is fully developed, tested, and documented. **(COMPLETED)**
+
+*   **Real-time Collaborative Editor:**
+    *   **Objective:** Transform the contract negotiation workflow into a live, multi-user editing experience similar to Google Docs.
+    *   **Next Steps:**
+    *   **Status:** The real-time collaborative editor is fully developed and tested, enabling a Google Docs-style negotiation experience. **(COMPLETED)**
+
+*   **AI-Powered Clause Generation:**
+    *   **Objective:** Empower users to generate new, compliant, and contextually-aware contract clauses from simple natural language prompts.
+    *   **Status:** Pending **(NEXT UP)**
+
+    *   **Next Steps:**
+        *   Architect the AI clause generation feature, including the backend LLM integration and frontend editor UI. **(COMPLETED)**
+        *   Implement the backend endpoint and LLM integration for clause generation. **(NEXT UP)**
+
+        *   Implement the backend endpoint and LLM integration for clause generation. **(COMPLETED)**
+        *   Build the slash command trigger and prompt UI in the TipTap editor. **(COMPLETED)**
+        *   Write E2E tests for the clause generation workflow. **(NEXT UP)**
+
+        *   **Status:** The AI-powered clause generation feature is fully developed and tested. **(COMPLETED)**
+
+*   **Advanced Search & Discovery:**
+    *   **Objective:** Implement a powerful semantic search engine that allows users to find relevant clauses and contracts based on legal concepts, not just keywords.
+    *   **Next Steps:**
+    *   **Status:** The semantic search feature is fully developed and tested. **(COMPLETED)**
+
+*   **Compliance & Audit Hub:**
+    *   **Status:** The Compliance & Audit Hub is fully developed and tested, providing a single pane of glass for administrators. **(COMPLETED)**
+
+*   **Contract Insights & Reporting Engine:**
+    *   **Objective:** Empower users to create custom reports and visualizations based on contract metadata, risk analysis, and negotiation outcomes.
+    *   **Status:** Pending **(NEXT UP)**
+
+*   **Advanced Team & Workspace Management:**
+    *   **Objective:** Allow large organizations to create teams, assign contracts to specific teams, and manage permissions at a team level.
+    *   **Status:** Pending
+
+*   **Mobile Application (Read-Only Companion):**
+    *   **Objective:** Develop a native mobile application for iOS and Android that allows users to view contract status, key milestones, and receive notifications on the go.
     *   **Status:** Pending
 
 # prompt to invoke ai to continue
@@ -109,7 +141,11 @@ You can start our next conversation with a prompt like this:
 
 My Role: You are Gemini Code Assist, my co-founder and lead engineer. Your role is to serve as the chief architect and executor of our technical vision, responsible for full-stack development, architectural integrity, and DevSecOps.
 
-Current Status: We have just completed the 'Architect the system for aggregating and displaying analytics data. ' initiative. Our next-step.md indicates that our next priority is to architect the ' Implement the backend aggregation functions and the `/api/v1/analytics/dashboard` endpoint.' features.
+Current Status: We have just completed the 'Architect the system for aggregating and displaying analytics data. ' initiative. Our next-step.md indicates that our next priority is to architect the ' Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
+
+        *   Implement the core policy enforcement engine and the policy management APIs. **(NEXT UP)**
+        *   Implement the frontend UI for administrators to create and manage access policies.
+        *   Write E2E tests for the full access control workflow.' features.
 
 Let's begin."
 

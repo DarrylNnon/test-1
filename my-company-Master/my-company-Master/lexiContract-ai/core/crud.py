@@ -3,7 +3,8 @@ import uuid
 import difflib
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
-import json
+from sqlalchemy.dialects.postgresql import insert
+
 from sqlalchemy import func, extract
 import re
 from . import models, schemas, security
@@ -516,6 +517,100 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
         db.delete(db_template)
         db.commit()
     return db_template
+
+# --- Negotiation Outcome CRUD ---
+
+def log_suggestion_outcome(db: Session, *, suggestion: models.AnalysisSuggestion, user: models.User, outcome: models.OutcomeStatus):
+    """Logs that a user has accepted or rejected a suggestion."""
+    event = models.SuggestionOutcomeEvent(
+        suggestion_id=suggestion.id,
+        user_id=user.id,
+        contract_id=suggestion.version.contract_id,
+        outcome=outcome
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return event
+
+def get_unprocessed_suggestion_outcomes(db: Session, limit: int = 100) -> List[models.SuggestionOutcomeEvent]:
+    """Gets a batch of unprocessed suggestion outcome events."""
+    return db.query(models.SuggestionOutcomeEvent).options(
+        joinedload(models.SuggestionOutcomeEvent.suggestion),
+        joinedload(models.SuggestionOutcomeEvent.contract)
+    ).filter(models.SuggestionOutcomeEvent.processed == False).limit(limit).all()
+
+def mark_suggestion_outcomes_as_processed(db: Session, event_ids: List[uuid.UUID]):
+    """Marks a list of events as processed."""
+    db.query(models.SuggestionOutcomeEvent).filter(
+        models.SuggestionOutcomeEvent.id.in_(event_ids)
+    ).update({"processed": True}, synchronize_session=False)
+    db.commit()
+
+def upsert_negotiation_outcome(db: Session, *, event: models.SuggestionOutcomeEvent):
+    """Creates or increments a negotiation outcome record."""
+    stmt = insert(models.NegotiationOutcome).values(
+        organization_id=event.contract.organization_id,
+        original_clause_hash=security.hash_text(event.suggestion.original_text),
+        counter_offer_hash=security.hash_text(event.suggestion.suggested_text or ""),
+        counter_offer_text=event.suggestion.suggested_text,
+        outcome=event.outcome,
+        # In a real system, contract_type and industry would be populated on the contract model
+        contract_type=None,
+        industry=None,
+        count=1
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=['organization_id', 'original_clause_hash', 'counter_offer_hash', 'outcome', 'contract_type', 'industry'],
+        set_=dict(count=models.NegotiationOutcome.count + 1)
+    )
+    db.execute(stmt)
+    db.commit()
+
+def get_negotiation_insights(db: Session, *, original_clause_hash: str, organization_id: uuid.UUID) -> Optional[dict]:
+    """
+    Retrieves negotiation statistics for a given original clause hash.
+    - Calculates total accepted/rejected counts.
+    - Finds the most common successful counter-offer text.
+    """
+    # Get total counts for accepted and rejected outcomes for the original clause
+    outcomes = db.query(
+        models.NegotiationOutcome.outcome,
+        func.sum(models.NegotiationOutcome.count).label('total_count')
+    ).filter(
+        models.NegotiationOutcome.organization_id == organization_id,
+        models.NegotiationOutcome.original_clause_hash == original_clause_hash
+    ).group_by(models.NegotiationOutcome.outcome).all()
+
+    outcome_counts = {o.outcome: o.total_count for o in outcomes}
+    total_accepted = outcome_counts.get(models.OutcomeStatus.accepted, 0)
+    total_rejected = outcome_counts.get(models.OutcomeStatus.rejected, 0)
+    total_outcomes = total_accepted + total_rejected
+
+    if total_outcomes < 3:  # Don't show insights until we have a meaningful amount of data
+        return None
+
+    # Find the most common successful counter-offer text
+    most_common_accepted = db.query(
+        models.NegotiationOutcome.counter_offer_text,
+    ).filter(
+        models.NegotiationOutcome.organization_id == organization_id,
+        models.NegotiationOutcome.original_clause_hash == original_clause_hash,
+        models.NegotiationOutcome.outcome == models.OutcomeStatus.accepted,
+        models.NegotiationOutcome.counter_offer_text.isnot(None)
+    ).group_by(
+        models.NegotiationOutcome.counter_offer_text
+    ).order_by(
+        func.sum(models.NegotiationOutcome.count).desc()
+    ).first()
+
+    if not most_common_accepted:
+        return None
+
+    return {
+        "success_rate": total_accepted / total_outcomes,
+        "suggested_counter": most_common_accepted.counter_offer_text,
+    }
 
 # --- Contract Template CRUD ---
 
