@@ -1,0 +1,4 @@
+This agreement is made between Party A and Party B.
+All data will be handled in accordance with our Data Processing Agreement (DPA).
+In the event of a data breach, we will provide notification within 72 hours.
+Party B agrees to indemnify Party A for any and all losses, without limit. This is an unfavorable term.

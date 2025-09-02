@@ -66,6 +66,16 @@ These scenarios validate the core user workflows.
 2.  Navigate to the "Management" tab.
 3.  **Verification:** The UI should display messages indicating that no key dates or obligations were extracted.
 
+### Scenario 5: Happy Path - Google Drive Import
+
+1.  **Login:** Navigate to the frontend and register/login with a test user.
+2.  **Connect Integration:** In `/settings/integrations`, connect your Google Drive account. (For local testing, this may require manual DB entries or mocked API calls).
+3.  **Navigate to Dashboard:** Go to the main contract list/dashboard.
+4.  **Open Import Modal:** Click the button to import a new contract and select "Import from Google Drive".
+5.  **Select File:** The file picker modal should appear, listing files from your Google Drive. Select a document.
+6.  **Import:** Click the "Import" button.
+7.  **Verification:** You should be redirected to the detail page for the newly created contract, and its analysis status should be "pending". A new contract record should exist in the database, linked to the Google Drive file via the `external_id` and `organization_integration_id` fields.
+
 ---
 
 ## 3. Automated End-to-End Testing
@@ -115,4 +125,3 @@ This job runs every 5 minutes to "send" pending notifications.
 ```bash
 docker-compose exec api python jobs/dispatcher.py
 ```
-

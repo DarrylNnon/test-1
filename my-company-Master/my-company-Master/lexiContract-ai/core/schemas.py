@@ -1,8 +1,8 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from datetime import datetime
-import uuid, enum
-from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus, SignatureStatus, SignerStatus
+import uuid
+from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus
 
 # --- User Schemas ---
 class UserBase(BaseModel):
@@ -83,9 +83,6 @@ class Contract(ContractBase):
     negotiation_status: NegotiationStatus
     signature_request_id: Optional[str] = None
     highlighted_snippet: Optional[str] = None # New field for search results
-    signature_status: SignatureStatus
-    docusign_envelope_id: Optional[str] = None
-    signers: List["Signer"] = []
     versions: List[ContractVersion] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -98,8 +95,6 @@ class AnalysisSuggestionCreate(BaseModel):
     suggested_text: Optional[str] = None
     comment: str
     risk_category: str
-    negotiation_insight: Optional[Dict[str, Any]] = None
-
 
 class AnalysisSuggestion(AnalysisSuggestionCreate):
     id: uuid.UUID
@@ -107,10 +102,6 @@ class AnalysisSuggestion(AnalysisSuggestionCreate):
     status: SuggestionStatus
 
     model_config = ConfigDict(from_attributes=True)
-
-class AnalysisSuggestionUpdate(BaseModel):
-    status: SuggestionStatus
-
 
 # --- User Comment Schemas ---
 class UserCommentCreate(BaseModel):
@@ -268,6 +259,33 @@ class ContractTemplate(ContractTemplateBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# --- Contract Template Schemas ---
+class ContractTemplateBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    content: str # The template body with placeholders like {{variable_name}}
+    category: Optional[str] = None
+
+class ContractTemplateCreate(ContractTemplateBase):
+    pass
+
+class ContractTemplateUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+
+class ContractTemplate(ContractTemplateBase):
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    created_by_id: uuid.UUID
+    created_by: User
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
 # --- AI Drafting Schemas ---
 class DraftContractRequest(BaseModel):
     variables: Dict[str, str]
@@ -278,6 +296,25 @@ class FinalizeDraftRequest(BaseModel):
 
 class DraftContractResponse(BaseModel):
     draft_content: str
+
+# --- Analytics Schemas ---
+class AnalyticsKPIs(BaseModel):
+    total_contracts: int
+    contracts_in_progress: int
+    average_cycle_time_days: float
+
+class RiskCategoryDistribution(BaseModel):
+    category: str
+    count: int
+
+class ContractVolumeOverTime(BaseModel):
+    month: str
+    count: int
+
+class FullAnalyticsDashboard(BaseModel):
+    kpis: AnalyticsKPIs
+    risk_distribution: List[RiskCategoryDistribution]
+    volume_over_time: List[ContractVolumeOverTime]
 
 # --- Integration Schemas ---
 class IntegrationBase(BaseModel):
@@ -299,83 +336,7 @@ class OrganizationIntegration(OrganizationIntegrationBase):
     id: uuid.UUID
     integration: Integration
 
-
-class DocuSignCredentials(BaseModel):
-    integration_key: str  # Also known as Client ID
-    user_id: str  # The API Username (GUID) from DocuSign
-    rsa_private_key: str  # The full private key as a string
-
     model_config = ConfigDict(from_attributes=True)
-
-# --- API Key Schemas ---
-class ApiKeyBase(BaseModel):
-    name: str
-
-class ApiKeyCreate(ApiKeyBase):
-    pass
-
-class ApiKey(ApiKeyBase):
-    id: uuid.UUID
-    prefix: str
-    is_active: bool
-    created_at: datetime
-    last_used_at: Optional[datetime] = None
-    user_id: uuid.UUID
-
-    model_config = ConfigDict(from_attributes=True)
-
-class NewApiKeyResponse(ApiKey):
-    raw_key: str # Only returned on creation
-
-# --- Public API Schemas ---
-# These schemas control the data exposed via the public API,
-# ensuring no internal or sensitive fields are leaked.
-
-class PublicSuggestion(BaseModel):
-    id: uuid.UUID
-    original_text: str
-    suggested_text: Optional[str] = None
-    comment: str
-    risk_category: str
-    status: SuggestionStatus
-
-    model_config = ConfigDict(from_attributes=True)
-
-class PublicContract(BaseModel):
-    id: uuid.UUID
-    filename: str
-    created_at: datetime
-    negotiation_status: NegotiationStatus
-    signature_status: SignatureStatus
-    analysis_status: AnalysisStatus # Status of the latest version
-
-    model_config = ConfigDict(from_attributes=True)
-
-class PublicContractDetail(PublicContract):
-    suggestions: List[PublicSuggestion] = []
-
-# --- Compliance Hub Schemas ---
-class PlaybookSummary(BaseModel):
-    enabled_count: int
-    total_count: int
-
-class AccessPolicySummary(BaseModel):
-    policy_count: int
-
-class ComplianceHubSummary(BaseModel):
-    playbook_summary: PlaybookSummary
-    recent_audit_logs: List[AuditLog]
-    access_policy_summary: AccessPolicySummary
-
-
-# --- Search Schemas ---
-class SearchResult(BaseModel):
-    contract_id: uuid.UUID
-    version_id: uuid.UUID
-    filename: str
-    snippet: str
-    score: float
-
 
 # --- Token ---
 class Token(BaseModel):
@@ -440,28 +401,7 @@ class ComplianceDashboardSummary(BaseModel):
     top_flagged_contracts: List[TopFlaggedContract]
 
 # Resolve forward references for circular dependencies
-Contract.model_rebuild()
-ContractVersion.model_rebuild()
-AnalysisSuggestion.model_rebuild()
 UserWithOrg.model_rebuild()
 Organization.model_rebuild()
-
-# --- E-Signature Schemas ---
-class SignerBase(BaseModel):
-    name: str
-    email: EmailStr
-    signing_order: int = 1
-
-class SignerCreate(SignerBase):
-    pass
-
-class Signer(SignerBase):
-    id: uuid.UUID
-    contract_id: uuid.UUID
-    status: SignerStatus
-    model_config = ConfigDict(from_attributes=True)
-
-class InitiateSignatureRequest(BaseModel):
-    signers: List[SignerCreate]
-    email_subject: str = "Please Sign: {contract_filename}"
-    email_body: str = "Please review and sign the attached document."
+Contract.model_rebuild()
+ContractVersion.model_rebuild()

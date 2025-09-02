@@ -45,30 +45,6 @@ class HubSpotClient:
         
         response.raise_for_status()
         new_token_data = response.json()
-        
-        async def update_deal(self, deal_id: str, payload: dict):
-        """Updates properties on a specific Deal."""
-        url = f"/crm/v3/objects/deals/{deal_id}"
-        response = await self.client.patch(url, json=payload)
-
-        if response.status_code == 401: # Token expired
-            await self._refresh_access_token()
-            response = await self.client.patch(url, json=payload) # Retry
-
-        response.raise_for_status()
-        print(f"Successfully updated Deal {deal_id} in HubSpot.")
-
-        async def update_deal(self, deal_id: str, payload: dict):
-        """Updates properties on a specific Deal."""
-        url = f"/crm/v3/objects/deals/{deal_id}"
-        response = await self.client.patch(url, json=payload)
-
-        if response.status_code == 401: # Token expired
-            await self._refresh_access_token()
-            response = await self.client.patch(url, json=payload) # Retry
-
-        response.raise_for_status()
-        print(f"Successfully updated Deal {deal_id} in HubSpot.")
 
         self.credentials["access_token"] = new_token_data["access_token"]
         crud.upsert_organization_integration(
@@ -92,3 +68,15 @@ class HubSpotClient:
 
         response.raise_for_status()
         return response.json()
+
+    async def update_deal(self, deal_id: str, payload: dict):
+        """Updates properties on a specific Deal."""
+        url = f"/crm/v3/objects/deals/{deal_id}"
+        response = await self.client.patch(url, json=payload)
+
+        if response.status_code == 401: # Token expired
+            await self._refresh_access_token()
+            response = await self.client.patch(url, json=payload) # Retry
+
+        response.raise_for_status()
+        print(f"Successfully updated Deal {deal_id} in HubSpot.")

@@ -1,59 +1,60 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
-import useAuth from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
 import { AnalyticsData } from '@/types';
 import KPIs from './KPIs';
-import RiskDistributionChart from './RiskDistributionChart';
-import VolumeChart from './VolumeChart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
-export default function AnalyticsClient() {
-  const { token, loading: authLoading } = useAuth();
+const AnalyticsClient = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      if (!token) return;
-      try {
-        setLoading(true);
-        const response = await api.get('/analytics/dashboard', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setData(response.data);
-      } catch (err: any) {
-        setError(err.response?.data?.detail || 'Failed to load analytics data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!authLoading) {
-      fetchAnalytics();
+    if (user) {
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          const response = await api.get('/analytics/dashboard');
+          setData(response.data);
+        } catch (err) {
+          setError('Failed to load analytics data.');
+          console.error(err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
     }
-  }, [token, authLoading]);
+  }, [user]);
 
-  if (loading || authLoading) {
-    return <div className="text-center p-8">Loading Analytics Dashboard...</div>;
-  }
-
-  if (error) {
-    return <div className="text-center p-8 text-red-500">Error: {error}</div>;
-  }
-
-  if (!data) {
-    return <div className="text-center p-8">No analytics data available.</div>;
-  }
+  if (loading) return <div>Loading analytics...</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
+  if (!data) return <div>No analytics data available.</div>;
 
   return (
-    <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <KPIs data={data.kpis} />
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <RiskDistributionChart data={data.risk_distribution} />
-        <VolumeChart data={data.volume_over_time} />
+    <div className="space-y-8">
+      <KPIs kpis={data.kpis} />
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Risk Over Time</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={data.risk_over_time}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="value" stroke="#ef4444" name="Average Risk Score" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-    </main>
+    </div>
   );
-}
+};
+
+export default AnalyticsClient;

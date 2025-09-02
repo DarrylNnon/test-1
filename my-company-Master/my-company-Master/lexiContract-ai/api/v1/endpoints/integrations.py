@@ -353,6 +353,10 @@ async def sync_status_to_external_system(*, db: Session, contract_id: UUID, new_
             print(f"Syncing status '{new_status}' for contract {contract.id} to HubSpot Deal {contract.external_id}")
             hs_client = HubSpotClient(db, organization_id=contract.organization_id)
             await hs_client.update_deal(contract.external_id, {"properties": {"lexicontract_status": new_status}})
+        elif integration_name == "HubSpot":
+            print(f"Syncing status '{new_status}' for contract {contract.id} to HubSpot Deal {contract.external_id}")
+            hs_client = HubSpotClient(db, organization_id=contract.organization_id)
+            await hs_client.update_deal(contract.external_id, {"properties": {"lexicontract_status": new_status}})
     except Exception as e:
         print(f"Error syncing status to {integration_name} for contract {contract.id}: {e}")
 

@@ -9,6 +9,7 @@ interface HighlightedTextProps {
   userComments: UserComment[];
   hoveredHighlightId: string | null;
   onHighlightHover: (id: string | null) => void;
+  onHighlightClick: (id: string) => void;
 }
 
 const getHighlightClasses = (type: 'suggestion' | 'comment', status: SuggestionStatus | null, isHovered: boolean) => {
@@ -37,42 +38,37 @@ export default function HighlightedText({
   userComments,
   hoveredHighlightId,
   onHighlightHover,
+  onHighlightClick,
 }: HighlightedTextProps) {
   const segments = useMemo(() => {
     const allHighlights = [
       ...suggestions.map(s => ({ ...s, type: 'suggestion' as const })),
       ...userComments.map(c => ({ ...c, type: 'comment' as const, status: null })),
-    ];
+    ].filter(item => typeof item.start_index === 'number' && typeof item.end_index === 'number');
 
-    if (allHighlights.length === 0) {
-      return [{ content: fullText, isHighlight: false }];
-    }
+    if (allHighlights.length === 0) return [{ content: fullText, isHighlight: false }];
 
-    const sortedHighlights = allHighlights.sort((a, b) => a.start_index - b.start_index);
+    const sortedHighlights = allHighlights.sort((a, b) => a.start_index! - b.start_index!);
 
     const parts: any[] = [];
     let lastIndex = 0;
 
     sortedHighlights.forEach(highlight => {
-      if (highlight.start_index > lastIndex) {
-        parts.push({
-          content: fullText.substring(lastIndex, highlight.start_index),
-          isHighlight: false,
-        });
+      // To prevent issues with overlapping highlights, we only process highlights
+      // that start at or after the last processed index. This gracefully skips overlaps.
+      if (highlight.start_index! >= lastIndex) {
+        // Add the plain text segment before the current highlight
+        if (highlight.start_index! > lastIndex) {
+          parts.push({ content: fullText.substring(lastIndex, highlight.start_index), isHighlight: false });
+        }
+        // Add the highlighted segment itself
+        parts.push({ content: fullText.substring(highlight.start_index!, highlight.end_index), isHighlight: true, highlight });
+        lastIndex = highlight.end_index!;
       }
-      parts.push({
-        content: fullText.substring(highlight.start_index, highlight.end_index),
-        isHighlight: true,
-        highlight,
-      });
-      lastIndex = highlight.end_index;
     });
 
     if (lastIndex < fullText.length) {
-      parts.push({
-        content: fullText.substring(lastIndex),
-        isHighlight: false,
-      });
+      parts.push({ content: fullText.substring(lastIndex), isHighlight: false });
     }
 
     return parts;
@@ -82,13 +78,7 @@ export default function HighlightedText({
     <pre className="whitespace-pre-wrap font-sans text-sm">
       {segments.map((segment, index) =>
         segment.isHighlight && segment.highlight ? (
-          <mark
-            key={segment.highlight.id}
-            id={`highlight-${segment.highlight.id}`}
-            className={getHighlightClasses(segment.highlight.type, segment.highlight.status, hoveredHighlightId === segment.highlight.id)}
-            onMouseEnter={() => onHighlightHover(segment.highlight.id)}
-            onMouseLeave={() => onHighlightHover(null)}
-          >
+          <mark key={segment.highlight.id} id={`highlight-${segment.highlight.id}`} className={getHighlightClasses(segment.highlight.type, segment.highlight.status, hoveredHighlightId === segment.highlight.id)} onMouseEnter={() => onHighlightHover(segment.highlight.id)} onMouseLeave={() => onHighlightHover(null)} onClick={() => onHighlightClick(segment.highlight.id)}>
             {segment.content}
           </mark>
         ) : (<span key={index}>{segment.content}</span>)

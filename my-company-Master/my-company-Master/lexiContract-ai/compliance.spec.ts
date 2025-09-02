@@ -3,7 +3,7 @@ import { login, createTestUser, uploadContract } from './utils';
 import path from 'path';
 
 test.describe('Advanced Compliance Modules', () => {
-  const complianceContractPath = path.join(__dirname, 'test-files', 'compliance_contract.txt');
+  const complianceContractPath = path.join(__dirname, '../../../../test_data', 'compliance_contract.txt')
   let enterpriseUser: { email: any; password: any; };
   let standardUser: { email: any; password: any; };
 
