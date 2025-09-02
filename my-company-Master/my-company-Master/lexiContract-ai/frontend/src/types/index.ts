@@ -51,3 +51,23 @@ export interface AnalyticsData {
   risk_over_time: ChartData[];
   negotiation_cycle_time: ChartData[];
 }
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  user_email: string;
+  action: string;
+  details: string;
+}
+
+export type Role = 'admin' | 'member';
+
+export interface Clause {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  organization_id: string;
+  created_at: string;
+  updated_at: string;
+}
