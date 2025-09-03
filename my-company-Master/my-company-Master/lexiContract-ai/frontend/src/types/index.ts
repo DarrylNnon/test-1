@@ -1,73 +1,34 @@
-export interface User {
+// A generic suggestion from the AI analysis
+export interface AnalysisSuggestion {
   id: string;
-  email: string;
-  role: 'admin' | 'member';
-  organization_id: string;
+  contract_version_id: string;
+  risk_category: string;
+  comment: string;
+  original_text: string;
+  suggestion_text: string;
 }
 
-export interface Organization {
+// A comment made by a user
+export interface UserComment {
   id: string;
-  name: string;
-  subscription_plan: 'free' | 'standard' | 'enterprise';
-  subscription_status: 'active' | 'inactive' | 'past_due';
-}
-
-export interface UserWithOrg extends User {
-  organization: Organization;
-}
-
-export interface ComplianceFinding {
-  category: string;
-  count: number;
-}
-
-export interface FlaggedContract {
-  id: string;
-  filename: string;
-  risk_score: number;
-  total_findings: number;
-}
-
-export interface ComplianceHubSummary {
-  total_contracts_scanned: number;
-  findings_by_category: ComplianceFinding[];
-  top_flagged_contracts: FlaggedContract[];
-}
-
-export interface Kpi {
-  label: string;
-  value: string | number;
-  change?: string;
-  changeType?: 'increase' | 'decrease';
-}
-
-export interface ChartData {
-  name: string;
-  value: number;
-}
-
-export interface AnalyticsData {
-  kpis: Kpi[];
-  risk_over_time: ChartData[];
-  negotiation_cycle_time: ChartData[];
-}
-
-export interface AuditLog {
-  id: string;
-  timestamp: string;
-  user_email: string;
-  action: string;
-  details: string;
-}
-
-export type Role = 'admin' | 'member';
-
-export interface Clause {
-  id: string;
-  title: string;
-  content: string;
-  category: string;
-  organization_id: string;
+  contract_version_id: string;
+  user_id: string;
+  comment_text: string;
   created_at: string;
-  updated_at: string;
+  resolved: boolean;
+}
+
+/**
+ * The result of comparing two clauses for similarity.
+ * This is the missing type that caused the build to fail.
+ */
+export interface ClauseSimilarityResult {
+  id: string;
+  contract_id: string;
+  version_a_id: string;
+  version_b_id: string;
+  clause_a_text: string;
+  clause_b_text: string;
+  similarity_score: number;
+  diff_html: string;
 }

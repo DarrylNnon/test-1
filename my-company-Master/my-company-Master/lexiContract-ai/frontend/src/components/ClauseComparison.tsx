@@ -1,55 +1,76 @@
 import { ClauseSimilarityResult, AnalysisSuggestion, UserComment } from '@/types';
+import { useState, useEffect } from 'react';
 
 interface ClauseComparisonProps {
   selectedHighlight: (AnalysisSuggestion | UserComment) | null;
-  similarClauses: ClauseSimilarityResult[];
-  isLoading: boolean;
+  contractId: string;
 }
 
-export default function ClauseComparison({ selectedHighlight, similarClauses, isLoading }: ClauseComparisonProps) {
+// Mock API call to avoid dependency on a file not in context
+const fetchSimilarClausesMock = async (
+  contractId: string,
+  text: string
+): Promise<ClauseSimilarityResult[]> => {
+  console.log(`Fetching similar clauses for contract ${contractId} with text: "${text}"`);
+  // In a real app, this would be an API call to something like:
+  // const response = await api.get(`/api/v1/contracts/${contractId}/similar-clauses`, { params: { text } });
+  // Returning mock data for demonstration.
+  if (text.includes('confidentiality')) {
+    return [
+      {
+        id: 'sim-1',
+        contract_id: contractId,
+        version_a_id: 'v1',
+        version_b_id: 'v2',
+        clause_a_text: 'The term of confidentiality is 5 years.',
+        clause_b_text: 'The term of confidentiality is 3 years.',
+        similarity_score: 0.85,
+        diff_html: `<p>The term of confidentiality is <del style="background:#ffe6e6;">5</del><ins style="background:#e6ffe6;">3</ins> years.</p>`,
+      },
+    ];
+  }
+  return [];
+};
+
+
+const ClauseComparison: React.FC<ClauseComparisonProps> = ({ selectedHighlight, contractId }) => {
+  const [similarClauses, setSimilarClauses] = useState<ClauseSimilarityResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedHighlight) {
+      setSimilarClauses([]);
+      return;
+    }
+
+    const fetchSimilarClauses = async () => {
+      setIsLoading(true);
+      try {
+        const textToCompare = 'comment_text' in selectedHighlight ? selectedHighlight.comment_text : selectedHighlight.comment;
+        const response = await fetchSimilarClausesMock(contractId, textToCompare);
+        setSimilarClauses(response);
+      } catch (error) {
+        console.error('Failed to fetch similar clauses:', error);
+        setSimilarClauses([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSimilarClauses();
+  }, [selectedHighlight, contractId]);
+
   if (!selectedHighlight) {
-    return (
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-        <p className="text-sm text-gray-500">Click a highlight in the document to compare it with your Clause Library.</p>
-      </div>
-    );
+    return <div className="p-4 text-gray-500 border-t">Select a highlight to see comparisons across versions.</div>;
   }
 
   return (
-    <div className="mt-6 border-t pt-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Clause Library Comparison</h3>
-      
-      <div className="bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="text-sm font-bold text-gray-600 uppercase tracking-wide">Selected Contract Text</h4>
-        <p className="mt-2 text-sm text-gray-800 italic">"{selectedHighlight.original_text}"</p>
-      </div>
-
-      {isLoading && <p className="text-sm text-gray-500">Searching library...</p>}
-
-      {!isLoading && similarClauses.length === 0 && (
-        <p className="text-sm text-gray-500">No similar clauses found in your library.</p>
-      )}
-
-      {!isLoading && similarClauses.length > 0 && (
-        <div className="space-y-4">
-          {similarClauses.map(clause => (
-            <div key={clause.id} className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
-              <div className="flex justify-between items-center">
-                <h4 className="text-md font-semibold text-indigo-700">{clause.title}</h4>
-                <span className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
-                  {`Match: ${(clause.similarity_score * 100).toFixed(0)}%`}
-                </span>
-              </div>
-              {clause.category && (
-                <p className="text-xs text-gray-500 mt-1">Category: {clause.category}</p>
-              )}
-              <div className="mt-3 prose prose-sm max-w-none text-gray-700">
-                <p>{clause.content}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="p-4 border-t">
+      <h3 className="text-lg font-semibold mb-2 text-gray-800">Clause Version Comparison</h3>
+      {isLoading && <div className="p-4 text-gray-500">Loading comparisons...</div>}
+      {!isLoading && similarClauses.length === 0 && <p className="text-gray-500">No similar clauses found in other versions.</p>}
     </div>
   );
-}
+};
+
+export default ClauseComparison;

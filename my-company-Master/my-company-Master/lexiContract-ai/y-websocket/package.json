@@ -1,0 +1,11 @@
+{
+  "name": "lexicontract-y-websocket-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./bin/server.js"
+  },
+  "dependencies": {
+    "y-websocket": "^1.5.3"
+  }
+}

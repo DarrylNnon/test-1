@@ -29,6 +29,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      chroma:
+        condition: service_healthy
+
+  chroma:
+    image: chromadb/chroma:0.5.0
+    container_name: lexi_chroma
+    volumes:
+      - chroma_data:/chroma/.chroma/index
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   frontend:
     build:
@@ -45,5 +60,15 @@ services:
     depends_on:
       - api
 
+  y-websocket:
+    build:
+      context: ./y-websocket
+      dockerfile: Dockerfile
+    container_name: lexi_y_websocket
+    command: node ./bin/server.js
+    ports:
+      - "1234:1234"
+
 volumes:
   postgres_data:
+  chroma_data:

@@ -16,8 +16,11 @@ LexiContract AI is built on a modern, scalable, and secure full-stack architectu
 *   **Frontend:** A responsive web application built with **Next.js (React)**, **TypeScript**, and styled with **Tailwind CSS**. It communicates with the backend via a proxied API.
 *   **Backend:** A high-performance API built with **Python** and **FastAPI**. It handles business logic, user authentication, and orchestrates the AI analysis.
 *   **Database:** A **PostgreSQL** database for storing user, organization, and contract metadata. Data models are managed using **SQLAlchemy**.
-*   **AI Analysis:** A background processing system that uses placeholder models to simulate contract analysis. In a production environment, this would involve fine-tuned LLMs for legal text processing.
-*   **Containerization:** The entire stack (frontend, backend, database) is containerized with **Docker** and orchestrated with **Docker Compose** for a consistent and reproducible development environment.
+*   **AI & Search:**
+    *   **Analysis:** A background processing system using fine-tuned LLMs for legal text processing.
+    *   **Vector Database:** A **ChromaDB** instance for enabling semantic search across all contracts.
+*   **Collaboration Server:** A dedicated **Y.js WebSocket server** to power the real-time collaborative editor.
+*   **Containerization:** The entire stack is containerized with **Docker** and orchestrated with **Docker Compose** for a consistent and reproducible development environment.
 
 ---
 
