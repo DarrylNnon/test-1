@@ -17,7 +17,7 @@ export default function UserCommentCard({ comment, onHover }: UserCommentCardPro
       onMouseEnter={() => onHover(comment.id)}
       onMouseLeave={() => onHover(null)}
     >
-      <p className="text-sm text-gray-700">{comment.text}</p>
+      <p className="text-sm text-gray-700">{comment.comment_text}</p>
       <p className="text-xs text-gray-500 mt-1">
         Commented by: {comment.author_id === user?.id ? 'You' : 'Team Member'} on {new Date(comment.created_at).toLocaleDateString()}
       </p>

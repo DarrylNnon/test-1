@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
-import { Clause } from '@/types';
+import { Clause, ClausePayload } from '@/types';
 import ClauseModal from './ClauseModal';
 
 const ClauseClient = () => {
@@ -31,7 +31,7 @@ const ClauseClient = () => {
     fetchClauses();
   }, []);
 
-  const handleSaveClause = async (clauseData: Omit<Clause, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => {
+  const handleSaveClause = async (clauseData: ClausePayload) => {
     try {
       if (selectedClause) {
         const response = await api.put(`/clauses/${selectedClause.id}`, clauseData);
@@ -62,7 +62,8 @@ const ClauseClient = () => {
     return clauses.filter(clause =>
       clause.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       clause.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      clause.category.toLowerCase().includes(searchTerm.toLowerCase())
+      // Add a null check for the optional category field
+        (clause.category && clause.category.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [clauses, searchTerm]);
 

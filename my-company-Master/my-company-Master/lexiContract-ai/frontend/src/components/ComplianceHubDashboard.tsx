@@ -1,11 +1,11 @@
 "use client";
 
-import { ComplianceHubSummary } from '@/types';
+import { ComplianceDashboardSummary } from '@/types'; // Corrected to use the right summary type
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ShieldAlert, FileWarning, TrendingUp } from 'lucide-react';
 
 interface Props {
-  summary: ComplianceHubSummary;
+  summary: ComplianceDashboardSummary;
 }
 
 const StatCard = ({ title, value, icon: Icon }: { title: string, value: string | number, icon: React.ElementType }) => (
@@ -54,12 +54,12 @@ export default function ComplianceHubDashboard({ summary }: Props) {
           <h2 className="text-lg font-medium text-gray-900 mb-4">Top 5 Flagged Contracts</h2>
           <div className="flow-root">
             <ul role="list" className="-my-5 divide-y divide-gray-200">
-              {summary.top_flagged_contracts.slice(0, 5).map((contract) => (
-                <li key={contract.id} className="py-4">
+              {summary.top_flagged_contracts.slice(0, 5).map((contract) => ( // Align with type properties
+                <li key={contract.contract_id} className="py-4">
                   <div className="flex items-center space-x-4">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{contract.filename}</p>
-                      <p className="text-sm text-gray-500 truncate">{contract.total_findings} findings</p>
+                  <p className="text-sm text-gray-500 truncate">{contract.finding_count} findings</p>
                     </div>
                     <div>
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${contract.risk_score > 75 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>

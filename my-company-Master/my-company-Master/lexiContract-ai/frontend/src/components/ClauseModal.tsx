@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from 'react';
-import { Clause } from '@/types';
+import { Clause, ClausePayload } from '@/types';
 
 interface ClauseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (clauseData: Omit<Clause, 'id' | 'organization_id' | 'created_at' | 'updated_at'>) => void;
+  onSave: (clauseData: ClausePayload) => void;
   clause?: Clause | null;
 }
 
@@ -19,7 +19,8 @@ export default function ClauseModal({ isOpen, onClose, onSave, clause }: ClauseM
     if (clause) {
       setTitle(clause.title);
       setContent(clause.content);
-      setCategory(clause.category);
+      // Handle the case where category can be null
+      setCategory(clause.category || '');
     } else {
       setTitle('');
       setContent('');

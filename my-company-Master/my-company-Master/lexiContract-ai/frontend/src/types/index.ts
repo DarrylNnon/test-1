@@ -1,3 +1,26 @@
+export enum Role {
+  Admin = "admin",
+  Member = "member",
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  enabled_playbooks: CompliancePlaybook[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  organization_id: string;
+  role: Role;
+  is_active: boolean;
+}
+
+export interface UserWithOrg extends User {
+  organization: Organization;
+}
+
 // A generic suggestion from the AI analysis
 export interface AnalysisSuggestion {
   id: string;
@@ -12,7 +35,8 @@ export interface AnalysisSuggestion {
 export interface UserComment {
   id: string;
   contract_version_id: string;
-  user_id: string;
+  author_id: string;
+  author: User;
   comment_text: string;
   created_at: string;
   resolved: boolean;
@@ -31,6 +55,49 @@ export interface ClauseSimilarityResult {
   clause_b_text: string;
   similarity_score: number;
   diff_html: string;
+}
+
+// Payload for creating or updating a clause
+export type ClausePayload = Pick<Clause, "title" | "content" | "category">;
+
+// From the Clause Library feature
+export interface Clause {
+  id: string;
+  organization_id: string;
+  created_by_id: string;
+  created_by: User;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  content: string;
+  category: string | null;
+}
+
+// Represents a single version of a contract document.
+export interface ContractVersion {
+  id: string;
+  contract_id: string;
+  version_number: number;
+  file_path: string;
+  created_at: string;
+  analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  analysis_summary: string | null;
+  suggestions: AnalysisSuggestion[];
+  comments: UserComment[];
+}
+
+// Represents a contract, which is a container for multiple versions.
+export interface Contract {
+  id: string;
+  filename: string;
+  uploader_id: string;
+  organization_id: string;
+  created_at: string;
+  negotiation_status: 'drafting' | 'in_review' | 'negotiating' | 'signed' | 'archived';
+  versions: ContractVersion[];
+  analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  analysis_summary: string | null;
+  identified_risks: string[] | null;
 }
 
 // From the Advanced Analytics Dashboard feature
@@ -55,4 +122,60 @@ export interface AnalyticsData {
   kpis: KPI;
   risk_distribution: RiskDistribution[];
   volume_over_time: VolumeOverTime[];
+}
+
+// Represents a single entry in the audit log
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  user_email: string;
+  action: string;
+  details: string;
+}
+
+// From the Compliance Insights Dashboard feature
+
+export interface FindingByCategory {
+  category: string;
+  count: number;
+}
+
+export interface TopFlaggedContract {
+  contract_id: string;
+  filename: string;
+  finding_count: number;
+  risk_score: number; // Added to support risk display in dashboard
+}
+
+export interface ComplianceDashboardSummary {
+  findings_by_category: FindingByCategory[];
+  top_flagged_contracts: TopFlaggedContract[];
+  total_contracts_scanned: number; // Added to support stat card in dashboard
+}
+
+// From the Compliance & Audit Hub feature
+
+export interface PlaybookSummary {
+  enabled_count: number;
+  total_count: number;
+}
+
+export interface AccessPolicySummary {
+  policy_count: number;
+}
+
+export interface ComplianceHubSummary {
+  playbook_summary: PlaybookSummary;
+  recent_audit_logs: AuditLog[];
+  access_policy_summary: AccessPolicySummary;
+}
+
+// From the Compliance Playbooks feature
+
+export interface CompliancePlaybook {
+  id: string;
+  name: string;
+  description: string;
+  is_enabled: boolean;
+  organization_id: string;
 }
