@@ -32,3 +32,27 @@ export interface ClauseSimilarityResult {
   similarity_score: number;
   diff_html: string;
 }
+
+// From the Advanced Analytics Dashboard feature
+
+export interface KPI {
+  total_contracts: number;
+  contracts_in_progress: number;
+  average_cycle_time_days: number;
+}
+
+export interface RiskDistribution {
+  category: string;
+  count: number;
+}
+
+export interface VolumeOverTime {
+  month: string;
+  count: number;
+}
+
+export interface AnalyticsData {
+  kpis: KPI;
+  risk_distribution: RiskDistribution[];
+  volume_over_time: VolumeOverTime[];
+}
