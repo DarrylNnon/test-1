@@ -21,6 +21,33 @@ export interface UserWithOrg extends User {
   organization: Organization;
 }
 
+export interface CustomReport {
+  id: string;
+  name: string;
+  description?: string;
+  configuration: ReportConfig;
+  organization_id: string;
+  created_by_id: string;
+}
+
+// --- Team Management Types ---
+
+export enum TeamRole {
+  Lead = 'lead',
+  Member = 'member',
+}
+
+export interface TeamMember {
+  user: User;
+  role: TeamRole;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  members: TeamMember[];
+}
+
 // A generic suggestion from the AI analysis
 export interface AnalysisSuggestion {
   id: string;
@@ -92,6 +119,7 @@ export interface Contract {
   filename: string;
   uploader_id: string;
   organization_id: string;
+  team_id: string | null;
   created_at: string;
   negotiation_status: 'drafting' | 'in_review' | 'negotiating' | 'signed' | 'archived';
   versions: ContractVersion[];

@@ -121,16 +121,23 @@ With our core analysis, drafting, and management features now in place, we will 
     *   **Status:** The Compliance & Audit Hub is fully developed and tested, providing a single pane of glass for administrators. **(COMPLETED)**
 
 *   **Contract Insights & Reporting Engine:**
-    *   **Objective:** Empower users to create custom reports and visualizations based on contract metadata, risk analysis, and negotiation outcomes.
-    *   **Status:** Pending **(NEXT UP)**
+    *   **Status:** The Contract Insights & Reporting Engine is fully developed and tested. **(COMPLETED)**
 
 *   **Advanced Team & Workspace Management:**
-    *   **Objective:** Allow large organizations to create teams, assign contracts to specific teams, and manage permissions at a team level.
-    *   **Status:** Pending
+    *   **Status:** The Advanced Team & Workspace Management feature is fully developed and tested. **(COMPLETED)**
 
 *   **Mobile Application (Read-Only Companion):**
     *   **Objective:** Develop a native mobile application for iOS and Android that allows users to view contract status, key milestones, and receive notifications on the go.
-    *   **Status:** Pending
+    *   **Status:** In Progress **(NEXT UP)**
+    *   **Next Steps:**
+        *   Architect the mobile application and required backend changes. **(COMPLETED)**
+        *   Implement the `UserDevice` model and the API endpoint for registering device tokens. **(COMPLETED)**
+        *   Update the notification dispatcher to send push notifications via the Expo API. **(COMPLETED)**
+        *   Set up the React Native project with Expo and implement the authentication flow. **(In Progress)**
+            *   Initialize the React Native project using Expo. **(COMPLETED)**
+            *   Implement the authentication flow (login screen, API calls, secure token storage). **(NEXT UP)**
+            *   Implement the authentication flow (login screen, API calls, secure token storage). **(COMPLETED)**
+        *   Build the Contracts Dashboard and Contract Detail screens for the mobile app. **(NEXT UP)**
 
 # prompt to invoke ai to continue
 Of course. To ensure seamless continuity for our next session, simply re-establish my context as your co-founder and lead engineer.

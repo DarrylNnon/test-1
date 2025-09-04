@@ -1,14 +1,3 @@
-from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, BackgroundTasks
-from sqlalchemy.orm import Session
-import uuid
-from typing import List
-
-from core import crud, models, schemas, analyzer, utils
-from api.v1 import dependencies
-from core.database import get_db
-
-router = APIRouter()
-
 from fastapi import (
     APIRouter, Depends, HTTPException, status, File, UploadFile,
     BackgroundTasks, WebSocket, WebSocketDisconnect,
@@ -25,79 +14,6 @@ from core.database import get_db
 from core.websockets import room_manager
 
 router = APIRouter()
-
-    file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(dependencies.get_current_user),
-):
-    """
-    Uploads a new contract, creating the parent contract record and its first version.
-    Triggers a background task for AI analysis on the initial version.
-    """
-    # Read file contents to pass to the background task
-    file_contents = await file.read()
-    try:
-        full_text = utils.extract_text_from_file(file_contents, file.filename)
-    except ValueError as e:
-        organization_id=current_user.organization_id
-    )
-
-    initial_version = db_contract.versions[0]
-
-    # Add the analysis task to the background
-    background_tasks.add_task(
-        analyzer.analyze_contract,
-        version_id=initial_version.id,
-        file_contents=file_contents,
-        filename=file.filename
-    )
-    """
-    Uploads a new version of an existing contract.
-    """
-    db_contract = crud.get_contract_by_id(db, contract_id=contract_id, organization_id=current_user.organization_id)
-    if not db_contract:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
-
-    file_contents = await file.read()
-
-    return new_version
-
-@router.get("/{contract_id}/diff", response_class=PlainTextResponse)
-def get_contract_version_diff(
-    contract_id: uuid.UUID,
-    from_version_id: uuid.UUID,
-    to_version_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(dependencies.get_current_user),
-):
-    """
-    Computes and returns a unified diff between the text of two contract versions.
-    """
-    from_version = crud.get_contract_version_by_id(db, version_id=from_version_id)
-    to_version = crud.get_contract_version_by_id(db, version_id=to_version_id)
-
-    if not from_version or not to_version:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="One or both versions not found")
-
-    if from_version.contract_id != contract_id or to_version.contract_id != contract_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Versions do not belong to the specified contract")
-
-    if from_version.contract.organization_id != current_user.organization_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this contract")
-
-    from_text = (from_version.full_text or "").splitlines()
-    to_text = (to_version.full_text or "").splitlines()
-
-    diff = difflib.unified_diff(
-        from_text,
-        to_text,
-        fromfile=f'Version {from_version.version_number}',
-        tofile=f'Version {to_version.version_number}',
-        lineterm='',
-    )
-
-    return "\n".join(diff)
 
 @router.get("/{contract_id}/diff", response_class=PlainTextResponse)
 def get_contract_version_diff(
@@ -194,9 +110,6 @@ async def update_suggestion_status(
         db=db, suggestion_id=suggestion_id, contract_version_id=version_id,
         data=suggestion_update
     )
-    if updated_suggestion is None:
-    )
-
     return updated_suggestion
 
 @router.post("/upload", response_model=schemas.Contract, status_code=status.HTTP_201_CREATED)
@@ -231,7 +144,7 @@ async def upload_contract(
     # Add the analysis task to the background
     background_tasks.add_task(
         analyzer.analyze_contract,
-        version_id=initial_version.id,,
+        version_id=initial_version.id,
         file_contents=file_contents,
         filename=file.filename
     )
@@ -347,6 +260,32 @@ def get_contract_version_diff(
     )
 
     return "\n".join(diff)
+
+@router.put("/{contract_id}/assign-team", response_model=schemas.Contract, tags=["contracts"])
+def assign_contract_to_team(
+    contract_id: uuid.UUID,
+    assignment: schemas.ContractTeamAssignment,
+    db: Session = Depends(dependencies.get_db),
+    current_user: models.User = Depends(dependencies.get_current_admin_user),
+):
+    """
+    Assigns a contract to a specific team.
+    To unassign, provide a null team_id.
+    Requires admin privileges.
+    """
+    db_contract = crud.get_contract_by_id(db, contract_id=contract_id, organization_id=current_user.organization_id)
+    if not db_contract:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    if assignment.team_id:
+        # Verify the team exists and belongs to the same organization
+        db_team = crud.get_team(db, team_id=assignment.team_id, organization_id=current_user.organization_id)
+        if not db_team:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+
+    updated_contract = crud.assign_contract_to_team(db, db_contract=db_contract, team_id=assignment.team_id)
+    return updated_contract
+
 
 @router.get("/", response_model=List[schemas.Contract])
 def list_contracts(

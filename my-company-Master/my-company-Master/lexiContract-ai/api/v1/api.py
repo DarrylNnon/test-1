@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from api.v1.endpoints import auth, users, contracts, analytics
-from .endpoints import (auth, users, contracts, clause_library, templates, drafting,
+from api.v1.endpoints import auth, users, contracts, analytics, integrations, policies, drafting, management, signature, search, compliance, reports, teams
+from .endpoints import (auth, users, contracts, clause_library, templates, drafting, teams,
                         analytics, integrations, audit, compliance, management)
 
 api_router = APIRouter()
@@ -20,6 +20,8 @@ api_router.include_router(integrations.router, prefix="/integrations", tags=["in
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(playbooks.router, prefix="/playbooks", tags=["Compliance Playbooks"])
 api_router.include_router(compliance_analytics.router, prefix="/compliance-analytics", tags=["Compliance Analytics"])
+api_router.include_router(reports.router)
+api_router.include_router(teams.router)
 api_router.include_router(management.router, tags=["Post-Signature Management"])
 api_router.include_router(drafting.router, prefix="/drafting", tags=["AI Drafting"])
-api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"]
+api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])

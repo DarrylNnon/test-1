@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import uuid
 import difflib
 from sqlalchemy.orm import Session, joinedload
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Type
 import json
 from sqlalchemy import func, extract
 import re
@@ -187,6 +187,122 @@ def create_contract_with_initial_version(db: Session, filename: str, full_text: 
     db.commit()
     db.refresh(db_contract)
     return db_contract
+
+def get_custom_report(db: Session, report_id: UUID, organization_id: UUID) -> Optional[models.CustomReport]:
+    return db.query(models.CustomReport).filter(
+        models.CustomReport.id == report_id,
+        models.CustomReport.organization_id == organization_id
+    ).first()
+
+def get_custom_reports_by_organization(db: Session, organization_id: UUID, skip: int = 0, limit: int = 100) -> List[models.CustomReport]:
+    return db.query(models.CustomReport).filter(
+        models.CustomReport.organization_id == organization_id
+    ).order_by(models.CustomReport.name).offset(skip).limit(limit).all()
+
+def create_custom_report(db: Session, report: schemas.CustomReportCreate, user_id: UUID, organization_id: UUID) -> models.CustomReport:
+    db_report = models.CustomReport(
+        **report.dict(),
+        created_by_id=user_id,
+        organization_id=organization_id
+    )
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+def update_custom_report(db: Session, db_report: models.CustomReport, report_in: schemas.CustomReportUpdate) -> models.CustomReport:
+    report_data = report_in.dict(exclude_unset=True)
+    for key, value in report_data.items():
+        setattr(db_report, key, value)
+    db.add(db_report)
+    db.commit()
+    db.refresh(db_report)
+    return db_report
+
+def delete_custom_report(db: Session, db_report: models.CustomReport):
+    db.delete(db_report)
+    db.commit()
+    return db_report
+
+# --- Team Management CRUD ---
+
+def create_team(db: Session, team: schemas.TeamCreate, organization_id: UUID) -> models.Team:
+    db_team = models.Team(name=team.name, organization_id=organization_id)
+    db.add(db_team)
+    db.commit()
+    db.refresh(db_team)
+    return db_team
+
+def get_team(db: Session, team_id: UUID, organization_id: UUID) -> Optional[models.Team]:
+    return db.query(models.Team).options(joinedload(models.Team.members).joinedload(models.TeamMembership.user)).filter(
+        models.Team.id == team_id,
+        models.Team.organization_id == organization_id
+    ).first()
+
+def get_teams_by_organization(db: Session, organization_id: UUID) -> List[models.Team]:
+    return db.query(models.Team).options(joinedload(models.Team.members).joinedload(models.TeamMembership.user)).filter(
+        models.Team.organization_id == organization_id
+    ).order_by(models.Team.name).all()
+
+def update_team(db: Session, db_team: models.Team, team_in: schemas.TeamCreate) -> models.Team:
+    db_team.name = team_in.name
+    db.add(db_team)
+    db.commit()
+    db.refresh(db_team)
+    return db_team
+
+def delete_team(db: Session, db_team: models.Team):
+    db.delete(db_team)
+    db.commit()
+    return db_team
+
+def add_team_member(db: Session, team_id: UUID, user_id: UUID, role: schemas.TeamRole) -> models.TeamMembership:
+    db_membership = models.TeamMembership(team_id=team_id, user_id=user_id, role=role)
+    db.add(db_membership)
+    db.commit()
+    db.refresh(db_membership)
+    return db_membership
+
+def get_team_member(db: Session, team_id: UUID, user_id: UUID) -> Optional[models.TeamMembership]:
+    return db.query(models.TeamMembership).filter(
+        models.TeamMembership.team_id == team_id,
+        models.TeamMembership.user_id == user_id
+    ).first()
+
+def remove_team_member(db: Session, db_membership: models.TeamMembership):
+    db.delete(db_membership)
+    db.commit()
+    return db_membership
+
+def assign_contract_to_team(db: Session, db_contract: models.Contract, team_id: Optional[UUID]) -> models.Contract:
+    """Assigns a contract to a team, or unassigns it if team_id is None."""
+    db_contract.team_id = team_id
+    db.add(db_contract)
+    db.commit()
+    db.refresh(db_contract)
+    return db_contract
+
+def upsert_user_device(db: Session, user_id: uuid.UUID, device: schemas.UserDeviceCreate) -> models.UserDevice:
+    """
+    Creates a new user device or updates the user_id if the device token already exists.
+    This handles cases where a user logs out and another logs in on the same device.
+    """
+    db_device = db.query(models.UserDevice).filter(models.UserDevice.device_token == device.token).first()
+    if db_device:
+        # Token exists, update user_id and type if necessary
+        db_device.user_id = user_id
+        db_device.device_type = device.type
+    else:
+        # New device token
+        db_device = models.UserDevice(
+            user_id=user_id,
+            device_token=device.token,
+            device_type=device.type
+        )
+        db.add(db_device)
+    db.commit()
+    db.refresh(db_device)
+    return db_device
 
 def create_contract_for_import(db: Session, *, filename: str, user_id: UUID, organization_id: UUID, org_integration_id: UUID, external_id: str) -> models.Contract:
     """

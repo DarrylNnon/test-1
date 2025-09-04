@@ -85,6 +85,18 @@ def update_user_role(
         )
     return updated_user
 
+@router.post("/me/devices", response_model=schemas.UserDevice, status_code=status.HTTP_201_CREATED)
+def register_user_device(
+    device: schemas.UserDeviceCreate,
+    db: Session = Depends(dependencies.get_db),
+    current_user: models.User = Depends(dependencies.get_current_active_user),
+):
+    """
+    Register a device token for push notifications for the current user.
+    This endpoint is intended for use by the mobile application.
+    """
+    return crud.upsert_user_device(db=db, user_id=current_user.id, device=device)
+
 @router.delete("/organization/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_user_from_organization(
     user_id: uuid.UUID,

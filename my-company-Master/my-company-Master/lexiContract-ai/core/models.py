@@ -1,30 +1,34 @@
 import enum
-from datetime import datetime
-from typing import List, Optional
-
-from sqlalchemy.dialects.postgresql import UUID
-                        Text, Enum as SQLAlchemyEnum, Boolean, LargeBinary
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, timezone
+from typing import List, Optional
 
-from .database import Base
+from sqlalchemy import (
+    Column, Integer, String, Text, DateTime, Boolean, Enum, ForeignKey, Table,
+    func
+)
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
+from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
 
 # Association Table for Organization <-> CompliancePlaybook
+Base = declarative_base()
 organization_playbook_association = Table(
     'organization_playbook_association', Base.metadata,
     Column('organization_id', UUID(as_uuid=True), ForeignKey('organizations.id'), primary_key=True),
     Column('playbook_id', UUID(as_uuid=True), ForeignKey('compliance_playbooks.id'), primary_key=True)
 )
 
-Base = declarative_base()
-
 class UserRole(str, enum.Enum):
     admin = "admin"
     member = "member"
+
+class TeamRole(str, enum.Enum):
+    lead = "lead"
+    member = "member"
+
+class DeviceType(str, enum.Enum):
+    ios = "ios"
+    android = "android"
 
 class AnalysisStatus(str, enum.Enum):
     pending = "pending"
@@ -63,6 +67,7 @@ class Organization(Base):
     contracts: Mapped[List["Contract"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     clauses: Mapped[List["Clause"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     templates: Mapped[List["ContractTemplate"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
+    teams: Mapped[List["Team"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     integrations: Mapped[List["OrganizationIntegration"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
 
     # --- NEW: Billing Fields ---
@@ -113,7 +118,9 @@ class User(Base):
     comments: Mapped[List["UserComment"]] = relationship(back_populates="user")
     notifications: Mapped[List["Notification"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     clauses: Mapped[List["Clause"]] = relationship(back_populates="created_by")
+    team_memberships: Mapped[List["TeamMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     created_templates: Mapped[List["ContractTemplate"]] = relationship(back_populates="created_by")
+    devices: Mapped[List["UserDevice"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 class Contract(Base):
     __tablename__ = "contracts"
@@ -128,6 +135,7 @@ class Contract(Base):
 
     uploader_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"))
+    team_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("teams.id"), nullable=True)
 
 # --- Fields for CRM/External Integrations ---
     organization_integration_id = Column(UUID(as_uuid=True), ForeignKey("organization_integrations.id"), nullable=True)
@@ -136,6 +144,7 @@ class Contract(Base):
     # Relationships
     uploader: Mapped["User"] = relationship(back_populates="contracts")
     organization: Mapped["Organization"] = relationship(back_populates="contracts")
+    team: Mapped[Optional["Team"]] = relationship(back_populates="contracts")
     suggestions: Mapped[List["AnalysisSuggestion"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
     comments: Mapped[List["UserComment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
     versions = relationship("ContractVersion", back_populates="contract", cascade="all, delete-orphan", order_by="ContractVersion.version_number")
@@ -159,7 +168,6 @@ class ContractVersion(Base):
 
 class AnalysisSuggestion(Base):
     __tablename__ = "analysis_suggestions"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     contract_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=False)
     start_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -176,12 +184,11 @@ class AnalysisSuggestion(Base):
 
 class UserComment(Base):
     __tablename__ = "user_comments"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     start_index: Mapped[int] = mapped_column(Integer, nullable=False)
     end_index: Mapped[int] = mapped_column(Integer, nullable=False)
     comment_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     contract_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=False)
 
     contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
@@ -190,45 +197,53 @@ class UserComment(Base):
     contract: Mapped["Contract"] = relationship(back_populates="comments")
     user: Mapped["User"] = relationship(back_populates="comments")
     version = relationship("ContractVersion", back_populates="comments")
-    user = relationship("User")
 
-class Notification(Base):
-    __tablename__ = "notifications"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    message: Mapped[str] = mapped_column(String, nullable=False)
-    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["User"] = relationship(back_populates="notifications")
+class CustomReport(Base):
+    __tablename__ = "custom_reports"
 
-class Integration(Base):
-    __tablename__ = "integrations"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False, index=True)
     description = Column(Text, nullable=True)
-    category = Column(String, nullable=False) # e.g., CRM, ERP
-    auth_type = Column(String, nullable=False) # e.g., 'oauth2', 'api_key'
+    configuration = Column(JSONB, nullable=False)
 
-
-class OrganizationIntegration(Base):
-    __tablename__ = "organization_integrations"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
-    integration_id = Column(UUID(as_uuid=True), ForeignKey("integrations.id"), nullable=False)
-    is_enabled = Column(Boolean, default=True)
-    
-    # Encrypted credentials
-    credentials = Column(LargeBinary, nullable=True)
-    
-    # Non-sensitive metadata
-    metadata = Column(JSONB, nullable=True)
+    created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
+    organization = relationship("Organization")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+
+class Team(Base):
+    __tablename__ = "teams"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False, index=True)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+
+    organization = relationship("Organization", back_populates="teams")
+    members = relationship("TeamMembership", back_populates="team", cascade="all, delete-orphan")
+    contracts = relationship("Contract", back_populates="team")
+
+
+class TeamMembership(Base):
+    __tablename__ = "team_memberships"
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), primary_key=True)
+    role = Column(Enum(TeamRole), default=TeamRole.member, nullable=False)
+
+    user = relationship("User", back_populates="team_memberships")
+    team = relationship("Team", back_populates="members")
+
+class UserDevice(Base):
+    __tablename__ = "user_devices"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    device_token = Column(String, unique=True, nullable=False, index=True)
+    device_type = Column(Enum(DeviceType), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    organization = relationship("Organization", back_populates="integrations")
-    integration = relationship("Integration")
+    user = relationship("User", back_populates="devices")
 
 class Clause(Base):
     __tablename__ = "clauses"
@@ -245,23 +260,6 @@ class Clause(Base):
     # Relationships
     organization: Mapped["Organization"] = relationship(back_populates="clauses")
     created_by: Mapped["User"] = relationship(back_populates="clauses")
-
-class ContractTemplate(Base):
-    __tablename__ = "contract_templates"
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    title: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    content: Mapped[str] = mapped_column(Text, nullable=False) # Template body with placeholders like {{variable_name}}
-    category: Mapped[Optional[str]] = mapped_column(String, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"), nullable=False)
-    created_by_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-
-    # Relationships
-    organization: Mapped["Organization"] = relationship(back_populates="templates")
-    created_by: Mapped["User"] = relationship(back_populates="created_templates")
 
 class Integration(Base):
     __tablename__ = "integrations"
@@ -352,40 +350,6 @@ class Notification(Base):
     user = relationship("User")
     contract = relationship("Contract")
     milestone = relationship("ContractMilestone")
-
-# --- Schemas for Integrations ---
-
-class IntegrationBase(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: str
-    auth_type: str
-
-class Integration(IntegrationBase):
-    id: UUID
-
-    class Config:
-        orm_mode = True
-
-
-class OrganizationIntegrationBase(BaseModel):
-    is_enabled: bool = True
-    metadata: Optional[dict] = None
-
-class OrganizationIntegrationCreate(OrganizationIntegrationBase):
-    credentials: dict
-
-class OrganizationIntegration(OrganizationIntegrationBase):
-    id: UUID
-    organization_id: UUID
-    integration: Integration # Nested schema
-
-    class Config:
-        orm_mode = True
-
-class OrganizationIntegrationInDB(OrganizationIntegration):
-    # This schema is not exposed via API
-    credentials: bytes
 
 class AccessPolicy(Base):
     __tablename__ = "access_policies"

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List, Dict
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus
 
@@ -79,6 +79,7 @@ class ContractBase(BaseModel):
 class Contract(ContractBase):
     id: uuid.UUID
     organization_id: uuid.UUID
+    team_id: Optional[uuid.UUID] = None
     created_at: datetime
     negotiation_status: NegotiationStatus
     signature_request_id: Optional[str] = None
@@ -115,6 +116,72 @@ class UserComment(UserCommentCreate):
     user_id: uuid.UUID
     created_at: datetime
 
+    model_config = ConfigDict(from_attributes=True)
+
+# Schemas for CustomReport
+class CustomReportBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    configuration: Dict[str, Any]
+
+class CustomReportCreate(CustomReportBase):
+    pass
+
+class CustomReportUpdate(CustomReportBase):
+    pass
+
+class CustomReport(CustomReportBase):
+    id: UUID4
+    organization_id: UUID4
+    created_by_id: UUID4
+
+    class Config:
+        orm_mode = True
+
+# Schemas for Reporting Engine
+class ReportExecuteRequest(BaseModel):
+    configuration: Dict[str, Any]
+
+class ContractTeamAssignment(BaseModel):
+    team_id: Optional[uuid.UUID] = None
+
+# --- Mobile App Schemas ---
+from .models import DeviceType
+
+class UserDeviceCreate(BaseModel):
+    token: str
+    type: DeviceType
+
+class UserDevice(BaseModel):
+    id: uuid.UUID
+    device_token: str
+    device_type: DeviceType
+
+# --- Team Management Schemas ---
+from .models import TeamRole
+
+class TeamMemberBase(BaseModel):
+    user_id: uuid.UUID
+    role: TeamRole = TeamRole.member
+
+class TeamMemberCreate(TeamMemberBase):
+    pass
+
+class TeamMember(BaseModel):
+    user: User
+    role: TeamRole
+
+    model_config = ConfigDict(from_attributes=True)
+
+class TeamBase(BaseModel):
+    name: str
+
+class TeamCreate(TeamBase):
+    pass
+
+class Team(TeamBase):
+    id: uuid.UUID
+    members: List[TeamMember] = []
     model_config = ConfigDict(from_attributes=True)
 
 # --- Notification Schemas ---

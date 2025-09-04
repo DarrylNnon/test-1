@@ -19,6 +19,12 @@ def can(user: models.User, action: str, resource: models.Contract, db: Session) 
     if user.role == "admin":
         return True
 
+    # V2: Team-based access check. This acts as a preliminary filter.
+    # If a contract is assigned to a team, the user MUST be a member of that team to proceed.
+    if resource.team_id:
+        if not any(m.team_id == resource.team_id for m in user.team_memberships):
+            return False # Deny access if user is not in the assigned team.
+
     policies = crud.get_policies_by_organization(db, organization_id=user.organization_id)
 
     user_attrs = {
