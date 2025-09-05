@@ -129,8 +129,8 @@ With our core analysis, drafting, and management features now in place, we will 
     *   **Next Steps:**
         *   Architect the feature, including `Team` and `TeamMembership` models and management APIs. **(NEXT UP)**
         *   Architect the feature, including models, APIs, and frontend components. **(COMPLETED)**
-        *   Implement the backend API endpoint for assigning a contract to a team. **(NEXT UP)**
-        *   Build the frontend UI for team creation and member management in the settings area.
+        *   Implement the backend API endpoint for assigning a contract to a team. **(COMPLETED)**
+        *   Build the frontend UI for team creation and member management in the settings area.**(NEXT UP)**
         *   Integrate the team assignment dropdown into the contract detail view.
         *   Write E2E tests for the full team management workflow.
 

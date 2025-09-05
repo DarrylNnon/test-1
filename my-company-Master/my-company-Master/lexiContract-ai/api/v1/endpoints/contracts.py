@@ -261,7 +261,7 @@ def get_contract_version_diff(
 
     return "\n".join(diff)
 
-@router.put("/{contract_id}/assign-team", response_model=schemas.Contract, tags=["contracts"])
+@router.put("/{contract_id}/team", response_model=schemas.Contract, summary="Assign Contract to Team")
 def assign_contract_to_team(
     contract_id: uuid.UUID,
     assignment: schemas.ContractTeamAssignment,
@@ -270,7 +270,7 @@ def assign_contract_to_team(
 ):
     """
     Assigns a contract to a specific team.
-    To unassign, provide a null team_id.
+    To unassign, provide a null `team_id`.
     Requires admin privileges.
     """
     db_contract = crud.get_contract_by_id(db, contract_id=contract_id, organization_id=current_user.organization_id)
