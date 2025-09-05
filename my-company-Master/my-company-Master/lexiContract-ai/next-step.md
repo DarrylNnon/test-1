@@ -125,6 +125,15 @@ With our core analysis, drafting, and management features now in place, we will 
 
 *   **Advanced Team & Workspace Management:**
     *   **Status:** The Advanced Team & Workspace Management feature is fully developed and tested. **(COMPLETED)**
+    *   **Status:** In Progress **(NEXT UP)**
+    *   **Next Steps:**
+        *   Architect the feature, including `Team` and `TeamMembership` models and management APIs. **(NEXT UP)**
+        *   Architect the feature, including models, APIs, and frontend components. **(COMPLETED)**
+        *   Implement the backend API endpoint for assigning a contract to a team. **(NEXT UP)**
+        *   Build the frontend UI for team creation and member management in the settings area.
+        *   Integrate the team assignment dropdown into the contract detail view.
+        *   Write E2E tests for the full team management workflow.
+
 
 *   **Mobile Application (Read-Only Companion):**
     *   **Objective:** Develop a native mobile application for iOS and Android that allows users to view contract status, key milestones, and receive notifications on the go.
