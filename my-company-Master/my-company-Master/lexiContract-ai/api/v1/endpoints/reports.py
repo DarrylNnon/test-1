@@ -11,6 +11,7 @@ from core import reporting_engine
 router = APIRouter(
     prefix="/reports",
     tags=["Reports"],
+    dependencies=[Depends(dependencies.get_current_active_user)]
 )
 
 @router.post("/execute", response_model=List[Dict[str, Any]], summary="Execute a Report Query")

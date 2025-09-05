@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import uuid
 import difflib
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, Query
 from typing import List, Optional, Dict, Any, Type
 import json
 from sqlalchemy import func, extract
@@ -164,44 +164,21 @@ def get_contract_by_id(db: Session, contract_id: uuid.UUID, organization_id: uui
     )
 
 def create_contract_with_initial_version(db: Session, filename: str, full_text: str, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.Contract:
-    """
-    Creates a new Contract record and its initial ContractVersion (v1).
-    """
-    # Create the parent contract record
-    db_contract = models.Contract(
-        filename=filename,
-        organization_id=organization_id,
-    )
-    db.add(db_contract)
-    db.flush() # Flush to get the contract ID before creating the version
 
-    # Create the first version of the contract
-    initial_version = models.ContractVersion(
-        contract_id=db_contract.id,
-        version_number=1,
-        full_text=full_text,
-        uploader_id=user_id,
-        analysis_status=models.AnalysisStatus.pending # Analysis starts now
-    )
-    db.add(initial_version)
-    db.commit()
-    db.refresh(db_contract)
-    return db_contract
-
-def get_custom_report(db: Session, report_id: UUID, organization_id: UUID) -> Optional[models.CustomReport]:
+def get_custom_report(db: Session, report_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.CustomReport]:
     return db.query(models.CustomReport).filter(
         models.CustomReport.id == report_id,
         models.CustomReport.organization_id == organization_id
     ).first()
 
-def get_custom_reports_by_organization(db: Session, organization_id: UUID, skip: int = 0, limit: int = 100) -> List[models.CustomReport]:
+def get_custom_reports_by_organization(db: Session, organization_id: uuid.UUID, skip: int = 0, limit: int = 100) -> List[models.CustomReport]:
     return db.query(models.CustomReport).filter(
         models.CustomReport.organization_id == organization_id
     ).order_by(models.CustomReport.name).offset(skip).limit(limit).all()
 
-def create_custom_report(db: Session, report: schemas.CustomReportCreate, user_id: UUID, organization_id: UUID) -> models.CustomReport:
+def create_custom_report(db: Session, report: schemas.CustomReportCreate, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.CustomReport:
     db_report = models.CustomReport(
-        **report.dict(),
+        **report.model_dump(),
         created_by_id=user_id,
         organization_id=organization_id
     )
@@ -211,7 +188,7 @@ def create_custom_report(db: Session, report: schemas.CustomReportCreate, user_i
     return db_report
 
 def update_custom_report(db: Session, db_report: models.CustomReport, report_in: schemas.CustomReportUpdate) -> models.CustomReport:
-    report_data = report_in.dict(exclude_unset=True)
+    report_data = report_in.model_dump(exclude_unset=True)
     for key, value in report_data.items():
         setattr(db_report, key, value)
     db.add(db_report)

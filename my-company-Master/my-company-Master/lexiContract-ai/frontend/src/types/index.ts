@@ -21,6 +21,23 @@ export interface UserWithOrg extends User {
   organization: Organization;
 }
 
+// --- Reporting Engine Types ---
+
+export interface ReportFilter {
+  id: string; // For UI keying
+  field: string;
+  operator: string;
+  value: any;
+}
+
+export interface ReportConfig {
+  dataSource: 'contracts' | 'analysis_suggestions';
+  metrics: { field: string; aggregation: 'count' | 'avg' | 'sum' }[];
+  groupBy?: { field: string } | null;
+  filters: ReportFilter[];
+  visualizationType: 'table' | 'bar_chart' | 'line_chart' | 'pie_chart';
+}
+
 export interface CustomReport {
   id: string;
   name: string;

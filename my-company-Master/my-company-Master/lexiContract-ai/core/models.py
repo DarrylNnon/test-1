@@ -198,7 +198,6 @@ class UserComment(Base):
     user: Mapped["User"] = relationship(back_populates="comments")
     version = relationship("ContractVersion", back_populates="comments")
 
-
 class CustomReport(Base):
     __tablename__ = "custom_reports"
 

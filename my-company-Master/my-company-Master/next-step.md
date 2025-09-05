@@ -122,15 +122,29 @@ With our core analysis, drafting, and management features now in place, we will 
 
 *   **Contract Insights & Reporting Engine:**
     *   **Objective:** Empower users to create custom reports and visualizations based on contract metadata, risk analysis, and negotiation outcomes.
-    *   **Status:** Pending **(NEXT UP)**
+    *   **Status:** In Progress **(NEXT UP)**
+    *   **Next Steps:**
+        *   Architect the reporting engine, including database models, a dynamic query service, and API endpoints. **(COMPLETED)**
+        *   Implement the `CustomReport` model and the CRUD API endpoints for managing report definitions. **(COMPLETED)**
+        *   Implement the core reporting engine service for dynamically executing queries. **(NEXT UP)**
+        *   Build the frontend report builder UI with live preview capabilities.
+        *   Build the main reports dashboard for listing and managing saved reports.
+        *   Write E2E tests for the full reporting workflow.
 
 *   **Advanced Team & Workspace Management:**
     *   **Objective:** Allow large organizations to create teams, assign contracts to specific teams, and manage permissions at a team level.
-    *   **Status:** Pending
+    *   **Status:** Pending **(IN QUEUE)**
+    *   **Next Steps:**
+        *   Architect the feature, including `Team` and `TeamMembership` models and management APIs.
+        *   Implement the backend models and API endpoints.
+        *   Build the frontend UI for team creation and member management.
+        *   Integrate team assignment into the contract view.
 
 *   **Mobile Application (Read-Only Companion):**
     *   **Objective:** Develop a native mobile application for iOS and Android that allows users to view contract status, key milestones, and receive notifications on the go.
-    *   **Status:** Pending
+    *   **Status:** Pending **(IN QUEUE)**
+    *   **Next Steps:**
+        *   Architect the mobile application and required backend changes for push notifications.
 
 # prompt to invoke ai to continue
 Of course. To ensure seamless continuity for our next session, simply re-establish my context as your co-founder and lead engineer.

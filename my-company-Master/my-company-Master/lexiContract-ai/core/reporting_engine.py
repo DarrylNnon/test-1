@@ -83,7 +83,7 @@ def execute_report_query(config: Dict[str, Any], organization_id: UUID, db: Sess
     # 3. Construct the query with selected columns and mandatory organization filter
     query = db.query(*columns_to_select)
 
-    if data_source == "contracts":
+    if hasattr(base_model, 'organization_id'):
         query = query.filter(base_model.organization_id == organization_id)
     elif data_source == "analysis_suggestions":
         # Join through the contract relationship to filter by organization

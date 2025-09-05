@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import uuid
 from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus
@@ -72,22 +72,6 @@ class ContractVersion(ContractVersionBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# --- Contract Schemas ---
-class ContractBase(BaseModel):
-    filename: str
-
-class Contract(ContractBase):
-    id: uuid.UUID
-    organization_id: uuid.UUID
-    team_id: Optional[uuid.UUID] = None
-    created_at: datetime
-    negotiation_status: NegotiationStatus
-    signature_request_id: Optional[str] = None
-    highlighted_snippet: Optional[str] = None # New field for search results
-    versions: List[ContractVersion] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
 # --- Analysis Suggestion Schemas ---
 class AnalysisSuggestionCreate(BaseModel):
     start_index: int
@@ -131,12 +115,11 @@ class CustomReportUpdate(CustomReportBase):
     pass
 
 class CustomReport(CustomReportBase):
-    id: UUID4
-    organization_id: UUID4
-    created_by_id: UUID4
+    id: uuid.UUID
+    organization_id: uuid.UUID
+    created_by_id: uuid.UUID
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Schemas for Reporting Engine
 class ReportExecuteRequest(BaseModel):

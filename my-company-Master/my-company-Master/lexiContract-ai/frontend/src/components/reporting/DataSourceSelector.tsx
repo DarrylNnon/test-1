@@ -1,31 +1,29 @@
-'use client';
-
 import { ReportConfig } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
-interface DataSourceSelectorProps {
+interface Props {
   config: ReportConfig;
   setConfig: (config: ReportConfig) => void;
 }
 
-export const DataSourceSelector = ({ config, setConfig }: DataSourceSelectorProps) => {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    // When changing data source, reset the fields to avoid invalid configurations
-    setConfig({
-      ...config,
-      dataSource: e.target.value,
-      metrics: [{ field: 'id', aggregation: 'count' }],
-      groupBy: null,
-      filters: [],
-    });
+export default function DataSourceSelector({ config, setConfig }: Props) {
+  const handleChange = (value: 'contracts' | 'analysis_suggestions') => {
+    setConfig({ ...config, dataSource: value });
   };
 
   return (
-    <div className="p-4 border-b">
-      <h3 className="font-semibold text-lg mb-2">Data Source</h3>
-      <select value={config.dataSource} onChange={handleChange} className="w-full p-2 border rounded-md bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500">
-        <option value="contracts">Contracts</option>
-        <option value="analysis_suggestions">AI Suggestions (Risks)</option>
-      </select>
+    <div className="grid gap-3">
+      <Label htmlFor="data-source">Data Source</Label>
+      <Select value={config.dataSource} onValueChange={handleChange}>
+        <SelectTrigger id="data-source" aria-label="Select data source">
+          <SelectValue placeholder="Select data source" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="contracts">Contracts</SelectItem>
+          <SelectItem value="analysis_suggestions">Analysis Suggestions</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
-};
+}
