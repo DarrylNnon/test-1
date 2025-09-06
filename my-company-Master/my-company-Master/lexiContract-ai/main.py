@@ -1,34 +1,38 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
 from api.v1.api import api_router
-from core.database import SessionLocal
-from core import crud
-from core.scheduler import setup_scheduler
+from core.config import settings
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Code to run on startup
-    print("Starting up...")
-    db = SessionLocal()
-    try:
-        # Seed initial data
-        if not crud.get_integration_by_name(db, "Salesforce"):
-            crud.create_system_integration(db, name="Salesforce", description="Connect to your Salesforce CRM to sync contract and account data.")
-            print("Seeded Salesforce integration.")
-    finally:
-        db.close()
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+)
 
-    scheduler = setup_scheduler()
-    scheduler.start()
-    print("Scheduler started.")
-    
-    yield
-    
-    # Code to run on shutdown
-    print("Shutting down...")
-    scheduler.shutdown()
-    print("Scheduler shut down.")
+# NEW: Middleware to add a trailing slash to API paths.
+# This prevents a 307 redirect from FastAPI's router, which can break
+# CORS preflight (OPTIONS) requests from the browser.
+@app.middleware("http")
+async def add_trailing_slash(request: Request, call_next):
+    path = request.scope["path"]
+    if path.startswith("/api/") and not path.endswith("/"):
+        request.scope["path"] = path + "/"
+    return await call_next(request)
 
-app = FastAPI(title="LexiContract AI", lifespan=lifespan)
+# Set all CORS enabled origins
+# In a production environment, you would want to be more restrictive.
+# For development, allowing localhost and specific cloud IDEs is common.
+origins = [
+    "http://localhost:3000",
+    "https://bookish-eureka-wrvjqgxj6973v997-3000.app.github.dev", # Your GitHub Codespaces URL
+]
 
-app.include_router(api_router, prefix="/api/v1")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(api_router, prefix=settings.API_V1_STR)

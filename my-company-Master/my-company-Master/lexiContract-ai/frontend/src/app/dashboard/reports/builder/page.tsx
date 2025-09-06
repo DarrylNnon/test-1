@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 
 // NOTE: In a real app, these would be imported from a shared types file and an API client.
@@ -44,7 +44,7 @@ async function executeReportPreview(definition: ReportDefinition): Promise<any[]
   // const response = await fetch('/api/v1/reports/preview', {
   //   method: 'POST',
   //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-  -  //   body: JSON.stringify(definition),
+  //   body: JSON.stringify(definition),
   // });
   // if (!response.ok) throw new Error('Failed to fetch preview');
   // return response.json();
@@ -84,7 +84,7 @@ export default function ReportBuilderPage() {
       const definition: ReportDefinition = {
         model: debouncedDefinition.model,
         columns: debouncedDefinition.columns,
-        filters: debouncedDefinition.filters.map(({ id, ...rest }) => rest),
+        filters: debouncedDefinition.filters.map(({ id, ...rest }: Filter) => rest),
       };
       const data = await executeReportPreview(definition);
       setPreviewData(data);
@@ -100,23 +100,23 @@ export default function ReportBuilderPage() {
   }, [fetchPreview]);
 
   const handleColumnToggle = (columnName: string) => {
-    setColumns(prev =>
+    setColumns((prev: string[]) =>
       prev.includes(columnName)
-        ? prev.filter(c => c !== columnName)
+        ? prev.filter((c: string) => c !== columnName)
         : [...prev, columnName]
     );
   };
 
   const addFilter = () => {
-    setFilters(prev => [...prev, { id: Date.now(), column: '', operator: 'equals', value: '' }]);
+    setFilters((prev: Filter[]) => [...prev, { id: Date.now(), column: '', operator: 'equals', value: '' }]);
   };
 
   const updateFilter = (id: number, field: keyof Omit<Filter, 'id'>, value: string) => {
-    setFilters(prev => prev.map(f => f.id === id ? { ...f, [field]: value } : f));
+    setFilters((prev: Filter[]) => prev.map((f: Filter) => f.id === id ? { ...f, [field]: value } : f));
   };
 
   const removeFilter = (id: number) => {
-    setFilters(prev => prev.filter(f => f.id !== id));
+    setFilters((prev: Filter[]) => prev.filter((f: Filter) => f.id !== id));
   };
 
   const handleSave = async () => {
@@ -124,7 +124,7 @@ export default function ReportBuilderPage() {
         alert("Please provide a name for the report.");
         return;
     }
-    const definition: ReportDefinition = { model, columns, filters: filters.map(({id, ...rest}) => rest) };
+    const definition: ReportDefinition = { model, columns, filters: filters.map(({id, ...rest}: Filter) => rest) };
     await saveReport(reportName, reportDescription, definition);
     alert("Report saved successfully!");
   };
@@ -144,23 +144,23 @@ export default function ReportBuilderPage() {
           <div className="lg:col-span-1 bg-white p-6 rounded-lg shadow">
             <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Report Name</label>
-                <input type="text" value={reportName} onChange={e => setReportName(e.target.value)} className="w-full p-2 border rounded-md" placeholder="e.g., Quarterly Signed Contracts"/>
+                <input type="text" value={reportName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReportName(e.target.value)} className="w-full p-2 border rounded-md" placeholder="e.g., Quarterly Signed Contracts"/>
             </div>
             <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea value={reportDescription} onChange={e => setReportDescription(e.target.value)} className="w-full p-2 border rounded-md" rows={2}></textarea>
+                <textarea value={reportDescription} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReportDescription(e.target.value)} className="w-full p-2 border rounded-md" rows={2}></textarea>
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
-              <select value={model} onChange={e => setModel(e.target.value)} className="w-full p-2 border rounded-md">
-                {Object.keys(AVAILABLE_MODELS).map(m => <option key={m} value={m}>{m}</option>)}
+              <select value={model} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setModel(e.target.value)} className="w-full p-2 border rounded-md">
+                {Object.keys(AVAILABLE_MODELS).map((m: string) => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
 
             <div className="mb-6">
               <h3 className="text-lg font-medium text-gray-800 mb-2">Columns</h3>
               <div className="grid grid-cols-2 gap-2">
-                {AVAILABLE_MODELS[model]?.columns.map(col => (
+                {AVAILABLE_MODELS[model]?.columns.map((col: string) => (
                   <label key={col} className="flex items-center space-x-2 text-sm">
                     <input type="checkbox" checked={columns.includes(col)} onChange={() => handleColumnToggle(col)} />
                     <span>{col}</span>
@@ -171,16 +171,16 @@ export default function ReportBuilderPage() {
 
             <div>
               <h3 className="text-lg font-medium text-gray-800 mb-2">Filters</h3>
-              {filters.map(filter => (
+              {filters.map((filter: Filter) => (
                 <div key={filter.id} className="grid grid-cols-3 gap-2 mb-2 p-2 border rounded-md">
-                  <select value={filter.column} onChange={e => updateFilter(filter.id, 'column', e.target.value)} className="col-span-3 p-1 border rounded-md">
+                  <select value={filter.column} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateFilter(filter.id, 'column', e.target.value)} className="col-span-3 p-1 border rounded-md">
                     <option value="">Select Column</option>
-                    {AVAILABLE_MODELS[model]?.columns.map(col => <option key={col} value={col}>{col}</option>)}
+                    {AVAILABLE_MODELS[model]?.columns.map((col: string) => <option key={col} value={col}>{col}</option>)}
                   </select>
-                  <select value={filter.operator} onChange={e => updateFilter(filter.id, 'operator', e.target.value)} className="p-1 border rounded-md">
-                    {OPERATORS.map(op => <option key={op} value={op}>{op}</option>)}
+                  <select value={filter.operator} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateFilter(filter.id, 'operator', e.target.value)} className="p-1 border rounded-md">
+                    {OPERATORS.map((op: string) => <option key={op} value={op}>{op}</option>)}
                   </select>
-                  <input type="text" value={filter.value} onChange={e => updateFilter(filter.id, 'value', e.target.value)} className="col-span-2 p-1 border rounded-md" placeholder="Value"/>
+                  <input type="text" value={filter.value} onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateFilter(filter.id, 'value', e.target.value)} className="col-span-2 p-1 border rounded-md" placeholder="Value"/>
                   <button onClick={() => removeFilter(filter.id)} className="col-span-3 text-red-500 text-xs text-right">Remove</button>
                 </div>
               ))}
@@ -200,13 +200,13 @@ export default function ReportBuilderPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      {columns.map(col => <th key={col} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col}</th>)}
+                      {columns.map((col: string) => <th key={col} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{col}</th>)}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {previewData.map((row, i) => (
+                    {previewData.map((row: any, i: number) => (
                       <tr key={i}>
-                        {columns.map(col => <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row[col]}</td>)}
+                        {columns.map((col: string) => <td key={col} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{row[col]}</td>)}
                       </tr>
                     ))}
                   </tbody>

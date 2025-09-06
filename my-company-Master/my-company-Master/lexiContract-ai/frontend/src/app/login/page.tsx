@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -12,8 +12,9 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
+    const data = Object.fromEntries(formData.entries());
     try {
-      await login(formData);
+      await login(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'An unexpected error occurred.');
     }
