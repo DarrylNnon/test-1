@@ -1,8 +1,7 @@
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
 import api from '@/lib/api';
 import { User, UserWithOrg } from '@/types';
 
@@ -10,7 +9,7 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   user: UserWithOrg | null; // The currently logged-in user
   token: string | null; // The JWT for API requests
-  login: (formData: FormData) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
@@ -26,16 +25,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const validateToken = async () => {
-      const cookieToken = Cookies.get('token');
-      if (cookieToken) {
+      const storedToken = localStorage.getItem('accessToken');
+      if (storedToken) {
         try {
-          setToken(cookieToken);
-          api.defaults.headers.common['Authorization'] = `Bearer ${cookieToken}`;
+          setToken(storedToken);
           const response = await api.get('/users/me');
           setUser(response.data);
         } catch (error) {
           console.error('Token validation failed', error);
-          Cookies.remove('token');
+          localStorage.removeItem('accessToken');
           setToken(null);
           setUser(null);
         }
@@ -45,30 +43,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     validateToken();
   }, []); // Run only on initial mount
 
-  const login = async (formData: FormData) => {
+  const login = async (email: string, password: string) => {
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
     const response = await api.post('/auth/token', formData);
     const { access_token } = response.data;
-    Cookies.set('token', access_token, { expires: 1 });
+    localStorage.setItem('accessToken', access_token);
     setToken(access_token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
     const userResponse = await api.get('/users/me');
     setUser(userResponse.data);
     router.push('/');
   };
 
   const register = async (data: any) => {
-    // Use the correct registration endpoint
     await api.post('/auth/register', data);
-    const formData = new FormData();
-    formData.append('username', data.email);
-    formData.append('password', data.password);
-    await login(formData);
+    await login(data.email, data.password);
   };
 
   const logout = () => {
-    Cookies.remove('token');
+    localStorage.removeItem('accessToken');
     setToken(null);
-    delete api.defaults.headers.common['Authorization'];
     setUser(null);
     router.push('/login');
   };
@@ -84,4 +79,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

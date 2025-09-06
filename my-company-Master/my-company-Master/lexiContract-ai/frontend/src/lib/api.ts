@@ -1,28 +1,30 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
-import { ComplianceHubSummary } from '@/types';
 
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
+const getBackendUrl = () => {
+  // This function determines the backend URL based on the environment.
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('.app.github.dev')) {
+    // We are in a GitHub Codespace. Construct the backend URL dynamically.
+    // The backend is on port 8000, and the frontend is on 3000.
+    return `https://${window.location.hostname.replace('-3000', '-8000')}`;
+  }
+  
+  // For local development or other environments, use the environment variable or a default.
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+};
+
+const backendUrl = getBackendUrl();
+
+export const api = axios.create({
+  baseURL: `${backendUrl}/api/v1`,
 });
 
+// Add an interceptor to include the auth token in requests if it exists.
 api.interceptors.request.use((config) => {
-  const token = Cookies.get('token');
-  // Only set the header if it's not already set (to avoid overriding token from server components)
-  if (token && !config.headers.Authorization) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
-
-export const getComplianceHubSummary = async (token: string): Promise<ComplianceHubSummary> => {
-  const response = await api.get('/compliance/summary', {
-    headers: {
-      // Pass token explicitly for server-side calls
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  return response.data;
-};
-
-export default api;
