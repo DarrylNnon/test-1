@@ -1,6 +1,9 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
+# Assuming these imports based on the project structure in README.md
+# and a typical FastAPI project layout.
 from api.v1.api import api_router
 from core.config import settings
 
@@ -9,30 +12,21 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
-# NEW: Middleware to add a trailing slash to API paths.
-# This prevents a 307 redirect from FastAPI's router, which can break
-# CORS preflight (OPTIONS) requests from the browser.
-@app.middleware("http")
-async def add_trailing_slash(request: Request, call_next):
-    path = request.scope["path"]
-    if path.startswith("/api/") and not path.endswith("/"):
-        request.scope["path"] = path + "/"
-    return await call_next(request)
-
-# Set all CORS enabled origins
-# In a production environment, you would want to be more restrictive.
-# For development, allowing localhost and specific cloud IDEs is common.
-origins = [
-    "http://localhost:3000",
-    "https://bookish-eureka-wrvjqgxj6973v997-3000.app.github.dev", # Your GitHub Codespaces URL
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Set all CORS enabled origins.
+# This middleware must be placed before any routers to ensure it
+# handles preflight OPTIONS requests correctly before they can be redirected.
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin).strip("/") for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+if __name__ == "__main__":
+    # This is for running the app directly for debugging,
+    # not for production.
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -23,6 +24,16 @@ class Settings:
 
     # Frontend URL for redirects
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # CORS Origins
+    # A comma-separated list of origins that should be allowed to make cross-origin requests.
+    # e.g. "http://localhost:3000,https://your-frontend.com"
+    BACKEND_CORS_ORIGINS: List[str] = [
+        origin.strip() for origin in os.getenv(
+            "BACKEND_CORS_ORIGINS",
+            "http://localhost:3000,https://localhost:3000,http://localhost,https://localhost,https://bookish-eureka-wrvjqgxj6973v997-3000.app.github.dev"
+        ).split(',')
+    ]
 
     # AI Service
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your_openai_api_key_here")
