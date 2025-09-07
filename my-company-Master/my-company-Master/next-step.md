@@ -178,8 +178,8 @@ With our core analysis, drafting, and management features now in place, we will 
     *   Architect the system for autonomous redlining based on compliance playbooks for low-risk, standardized contracts. **(COMPLETED)**
     *   Enhance `AnalysisSuggestion` and `ContractVersion` models for autonomous redlining. **(COMPLETED)**
     *   Implement the core `RedliningService` to apply playbook rules and generate new contract versions. **(COMPLETED)**
-    *   Implement the logic for calculating and storing a confidence score for each autonomous change. **(NEXT UP)**
-    *   Develop the "human-in-the-loop" UI for reviewing and approving the AI-generated redlines.
+    *   Implement the logic for calculating and storing a confidence score for each autonomous change. **(COMPLETED)**
+    *   Develop the "human-in-the-loop" UI for reviewing and approving the AI-generated redlines.**(NEXT UP)**
     *   Implement the approval/rejection API endpoints and the full end-to-end workflow.
     *   Run a pilot program for autonomous redlining on NDAs.
 

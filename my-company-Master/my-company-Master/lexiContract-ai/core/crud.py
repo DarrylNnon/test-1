@@ -485,11 +485,11 @@ def create_new_contract_version_with_parent(db: Session, original_version: model
     db.refresh(new_version)
     return new_version
 
-def copy_suggestions_to_new_version(db: Session, suggestions: list[models.AnalysisSuggestion], new_version_id: uuid.UUID):
+def copy_suggestions_to_new_version(db: Session, suggestions_with_scores: list[tuple[models.AnalysisSuggestion, float]], new_version_id: uuid.UUID):
     """
     Copies a list of suggestions to a new contract version and marks them as autonomous.
     """
-    for original_suggestion in suggestions:
+    for original_suggestion, score in suggestions_with_scores:
         new_suggestion = models.AnalysisSuggestion(
             contract_version_id=new_version_id,
             contract_id=original_suggestion.contract_id,
@@ -499,7 +499,8 @@ def copy_suggestions_to_new_version(db: Session, suggestions: list[models.Analys
             suggested_text=original_suggestion.suggested_text,
             comment=original_suggestion.comment,
             risk_category=original_suggestion.risk_category,
-            is_autonomous=True # Mark as an autonomous change
+            is_autonomous=True, # Mark as an autonomous change
+            confidence_score=score # Store the calculated confidence
         )
         db.add(new_suggestion)
     db.commit()

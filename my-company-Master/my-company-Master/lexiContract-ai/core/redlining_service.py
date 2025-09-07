@@ -25,6 +25,24 @@ class RedliningService:
         
         return "".join(text_parts)
 
+    def _calculate_confidence_score(self, suggestion: models.AnalysisSuggestion) -> float:
+        """
+        Calculates a confidence score for a suggestion based on simple heuristics.
+        This can be replaced with a more sophisticated model later.
+        """
+        # Start with a high base confidence for playbook-driven suggestions.
+        score = 0.85
+
+        # More complex (longer) original text is slightly less certain.
+        if len(suggestion.original_text) > 150:
+            score -= 0.05
+
+        # Very short, specific replacements are more certain.
+        if len(suggestion.suggested_text) < 30:
+            score += 0.05
+
+        return min(max(score, 0.5), 0.99) # Clamp score between 0.5 and 0.99
+
     def create_autonomous_redline(self, db: Session, original_version: models.ContractVersion) -> models.ContractVersion | None:
         """
         Creates a new, autonomously redlined contract version from an existing one.
@@ -37,6 +55,9 @@ class RedliningService:
             print(f"No applicable suggestions found for autonomous redlining on version {original_version.id}.")
             return None
 
+        # Calculate confidence scores for each suggestion we are about to apply.
+        suggestions_with_scores = [(s, self._calculate_confidence_score(s)) for s in suggestions_to_apply]
+
         # Apply the suggestions to the original text to create the new redlined text.
         new_text = self._apply_suggestions_to_text(original_version.full_text, suggestions_to_apply)
 
@@ -47,8 +68,8 @@ class RedliningService:
             new_text=new_text,
         )
 
-        # Copy the applied suggestions to the new version and mark them as autonomous.
-        crud.copy_suggestions_to_new_version(db=db, suggestions=suggestions_to_apply, new_version_id=new_version.id)
+        # Copy the applied suggestions to the new version, including their confidence scores.
+        crud.copy_suggestions_to_new_version(db=db, suggestions_with_scores=suggestions_with_scores, new_version_id=new_version.id)
 
         return new_version
 
