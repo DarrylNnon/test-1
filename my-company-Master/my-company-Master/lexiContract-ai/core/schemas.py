@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
-import uuid
+from uuid import UUID, uuid4
 from .models import UserRole, AnalysisStatus, SuggestionStatus, SubscriptionStatus, NegotiationStatus
 
 # --- User Schemas ---
@@ -208,6 +208,68 @@ class Notification(NotificationBase):
 
     class Config:
         from_attributes = True
+
+# --- Developer Portal & Marketplace Schemas ---
+
+class DeveloperAppBase(BaseModel):
+    name: str = Field(..., min_length=3, max_length=50)
+    description: Optional[str] = Field(None, max_length=300)
+    redirect_uris: List[str] = []
+    scopes: List[str] = []
+
+class DeveloperAppCreate(DeveloperAppBase):
+    pass
+
+class DeveloperAppUpdate(DeveloperAppBase):
+    pass
+
+class DeveloperApp(DeveloperAppBase):
+    id: UUID
+    client_id: str
+    developer_org_id: UUID
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class DeveloperAppWithSecret(DeveloperApp):
+    client_secret: str # This is only shown once upon creation
+
+class AppInstallationBase(BaseModel):
+    app_id: UUID
+    customer_org_id: UUID
+    is_enabled: bool = True
+    permissions: dict = {}
+
+class AppInstallation(AppInstallationBase):
+    id: UUID
+    installed_by_user_id: UUID
+    installed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SandboxEnvironment(BaseModel):
+    id: UUID
+    developer_org_id: UUID
+    subdomain: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class OAuthToken(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    refresh_token: str
+    scope: str
+
+
+
 
 # --- Clause Library Schemas ---
 class ClauseBase(BaseModel):

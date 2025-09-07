@@ -148,13 +148,15 @@ With our core analysis, drafting, and management features now in place, we will 
 
 With our core analysis, drafting, and management features now in place, we will focus on providing high-level business intelligence and expanding our ecosystem connectivity.
 *   **Objective:** Build a full developer portal and a marketplace for third-party integrations. This will allow partners to build on our platform, dramatically increasing our value proposition and creating strong network effects.
-*   **Status:** Pending **(IN QUEUE)**
+*   **Status:** In Progress **(NEXT UP)**
 *   **Next Steps:**
-    *   Design the architecture for the developer portal, including documentation generation, sandbox environments, and app certification workflows.
-    *   Implement the backend models for `DeveloperApp`, `AppInstallation`, and `SandboxEnvironment`.
-    *   Build the frontend UI for the developer portal where developers can register, create apps, and manage credentials.
-    *   Implement the sandbox environment creation logic.
-    *   Develop the initial marketplace UI for end-users to browse and install third-party apps.
+    *   Design the architecture for the developer portal, including documentation generation, sandbox environments, and app certification workflows. **(COMPLETED)**
+    *   Implement the backend models for `DeveloperApp`, `AppInstallation`, and `SandboxEnvironment`. **(COMPLETED)**
+    *   Implement the backend APIs for the developer portal (app registration and management). **(COMPLETED)**
+    *   Build the frontend UI for the developer portal where developers can register, create apps, and manage credentials. **(COMPLETED)**
+    *   Implement the sandbox environment creation logic. **(COMPLETED)**
+    *   Develop the initial marketplace UI for end-users to browse and install third-party apps. **(COMPLETED)**
+    *   Implement the full OAuth 2.0 consent and installation workflow. **(COMPLETED)**
 
 *   **AI-Powered Contract Drafting:**
     *   **Status:** The AI-Powered Contract Drafting feature set is fully developed, tested, and documented. **(COMPLETED)**
@@ -165,10 +167,10 @@ With our core analysis, drafting, and management features now in place, we will 
 ### Initiative 3: Next-Generation AI (Autonomous Capabilities)
 
 *   **Objective:** Evolve from "AI-assisted" to "AI-led" workflows by introducing predictive analytics and autonomous contract redlining. This will further solidify our position as the innovation leader.
-*   **Status:** Pending **(IN QUEUE)**
+*   **Status:** In Progress **(NEXT UP)**
 *   **Next Steps (Predictive Analytics):**
-    *   Conduct a research spike on the data and models required for predictive negotiation analytics (e.g., forecasting timelines, success probability).
-    *   Enhance the `NegotiationOutcome` model to store more granular data points for training.
+    *   Conduct a research spike on the data and models required for predictive negotiation analytics (e.g., forecasting timelines, success probability). **(COMPLETED)**
+    *   Enhance the `NegotiationOutcome` model to store more granular data points for training. **(NEXT UP)**
     *   Develop and train an initial model to predict negotiation timelines based on contract type and counterparty history.
     *   Integrate the predictive model into the backend and expose insights via the API.
     *   Update the frontend to display predictive insights on the contract dashboard.

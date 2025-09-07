@@ -11,6 +11,9 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
+OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 1 day
+OAUTH_REFRESH_TOKEN_EXPIRE_DAYS = 90
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 FERNET = Fernet(settings.FERNET_KEY.encode())
 
@@ -87,3 +90,15 @@ def verify_oauth_state_token(token: str) -> str | None:
         return payload.get("sub")
     except jwt.JWTError:
         return None
+
+def create_oauth_access_token(data: dict):
+    expires = timedelta(minutes=OAUTH_ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = data.copy()
+    to_encode.update({"exp": datetime.now(timezone.utc) + expires, "aud": "oauth_access"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_oauth_refresh_token(data: dict):
+    expires = timedelta(days=OAUTH_REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = data.copy()
+    to_encode.update({"exp": datetime.now(timezone.utc) + expires, "aud": "oauth_refresh"})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

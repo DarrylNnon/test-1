@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta, timezone
 import uuid
 import difflib
+import secrets
+import hashlib
 from sqlalchemy.orm import Session, joinedload, Query
 from typing import List, Optional, Dict, Any, Type
 import json
 from sqlalchemy import func, extract
 import re
 from . import models, schemas, security
+from .security import get_password_hash, hash_api_key
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
@@ -344,6 +347,101 @@ def update_contract_version_analysis(db: Session, version_id: uuid.UUID, full_te
     db_version = db.query(models.ContractVersion).filter(models.ContractVersion.id == version_id).first()
     if not db_version:
         return None
+
+# --- Developer Portal & Marketplace CRUD ---
+
+def generate_client_credentials():
+    """Generates a secure client_id and client_secret."""
+    client_id = f"lc_client_{secrets.token_urlsafe(16)}"
+    client_secret = secrets.token_urlsafe(32)
+    return client_id, client_secret
+
+def create_developer_app(db: Session, app: schemas.DeveloperAppCreate, developer_org_id: UUID):
+    client_id, client_secret = generate_client_credentials()
+    client_secret_hash = hash_api_key(client_secret) # Reusing the same secure hashing
+
+    db_app = models.DeveloperApp(
+        name=app.name,
+        description=app.description,
+        developer_org_id=developer_org_id,
+        client_id=client_id,
+        client_secret_hash=client_secret_hash,
+        redirect_uris=app.redirect_uris,
+        scopes=app.scopes
+    )
+    db.add(db_app)
+    db.commit()
+    db.refresh(db_app)
+    return db_app, client_secret # Return the raw secret only on creation
+
+def get_developer_apps_by_org(db: Session, org_id: UUID):
+    return db.query(models.DeveloperApp).filter(models.DeveloperApp.developer_org_id == org_id).all()
+
+def get_developer_app(db: Session, app_id: UUID, org_id: UUID):
+    return db.query(models.DeveloperApp).filter(models.DeveloperApp.id == app_id, models.DeveloperApp.developer_org_id == org_id).first()
+
+def regenerate_client_secret(db: Session, db_app: models.DeveloperApp):
+    _client_id, new_client_secret = generate_client_credentials()
+    db_app.client_secret_hash = hash_api_key(new_client_secret)
+    db.add(db_app)
+    db.commit()
+    db.refresh(db_app)
+    return db_app, new_client_secret
+
+def get_developer_app_by_client_id(db: Session, client_id: str) -> Optional[models.DeveloperApp]:
+    return db.query(models.DeveloperApp).filter(models.DeveloperApp.client_id == client_id).first()
+
+def create_app_installation(db: Session, app_id: UUID, customer_org_id: UUID, installed_by_user_id: UUID, permissions: dict) -> models.AppInstallation:
+    db_installation = models.AppInstallation(
+        app_id=app_id,
+        customer_org_id=customer_org_id,
+        installed_by_user_id=installed_by_user_id,
+        permissions=permissions,
+        is_enabled=True
+    )
+    db.add(db_installation)
+    db.commit()
+    db.refresh(db_installation)
+    return db_installation
+
+def get_published_apps(db: Session, skip: int = 0, limit: int = 100):
+    """Gets all developer apps with a 'published' status."""
+    return db.query(models.DeveloperApp).filter(models.DeveloperApp.status == models.DeveloperAppStatus.published).offset(skip).limit(limit).all()
+
+def get_sandbox_by_org(db: Session, org_id: UUID) -> Optional[models.SandboxEnvironment]:
+    return db.query(models.SandboxEnvironment).filter(models.SandboxEnvironment.developer_org_id == org_id).first()
+
+def create_sandbox_environment(db: Session, developer_org_id: UUID) -> models.SandboxEnvironment:
+    """
+    Creates a new SandboxEnvironment record in a 'provisioning' state.
+    """
+    subdomain = f"dev-org-{str(developer_org_id)[:8]}.sandbox.lexicontract.ai"
+    
+    # Encrypt placeholder data for the non-nullable connection string field.
+    # This will be updated by the background provisioning job.
+    placeholder_creds = encrypt_data('{"status": "provisioning"}')
+
+    db_sandbox = models.SandboxEnvironment(
+        developer_org_id=developer_org_id,
+        subdomain=subdomain,
+        status=models.SandboxEnvironmentStatus.provisioning,
+        db_connection_string=placeholder_creds
+    )
+    db.add(db_sandbox)
+    db.commit()
+    db.refresh(db_sandbox)
+    return db_sandbox
+
+def update_sandbox_environment(db: Session, sandbox_id: UUID, status: models.SandboxEnvironmentStatus, connection_string_bytes: Optional[bytes] = None) -> Optional[models.SandboxEnvironment]:
+    db_sandbox = db.query(models.SandboxEnvironment).filter(models.SandboxEnvironment.id == sandbox_id).first()
+    if not db_sandbox:
+        return None
+    db_sandbox.status = status
+    if connection_string_bytes:
+        db_sandbox.db_connection_string = connection_string_bytes
+    db.commit()
+    db.refresh(db_sandbox)
+    return db_sandbox
 
     # Update contract text and status
     db_version.full_text = full_text

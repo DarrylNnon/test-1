@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Boolean, Enum, ForeignKey, Table,
-    func
+    func, LargeBinary
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
@@ -76,6 +76,10 @@ class Organization(Base):
     subscription_status: Mapped[Optional[SubscriptionStatus]] = mapped_column(Enum(SubscriptionStatus), index=True)
     plan_id: Mapped[Optional[str]] = mapped_column(String) # e.g., 'price_starter', 'price_pro'
     current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    developer_apps = relationship("DeveloperApp", back_populates="developer_org")
+    installations = relationship("AppInstallation", back_populates="customer_org")
+    sandbox_environments = relationship("SandboxEnvironment", back_populates="developer_org")
 
 # V2 Compliance Module Relationship
     enabled_playbooks = relationship(
@@ -166,6 +170,65 @@ class ContractVersion(Base):
     suggestions = relationship("AnalysisSuggestion", back_populates="version", cascade="all, delete-orphan")
     comments = relationship("UserComment", back_populates="version", cascade="all, delete-orphan")
 
+# --- Marketplace & Partner Ecosystem ---
+
+class DeveloperAppStatus(enum.Enum):
+    development = "development"
+    pending_review = "pending_review"
+    published = "published"
+    rejected = "rejected"
+    archived = "archived"
+
+class SandboxEnvironmentStatus(enum.Enum):
+    provisioning = "provisioning"
+    active = "active"
+    suspended = "suspended"
+    deleted = "deleted"
+
+class DeveloperApp(Base):
+    __tablename__ = "developer_apps"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    developer_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    client_id = Column(String, unique=True, index=True, nullable=False)
+    client_secret_hash = Column(String, nullable=False)
+    logo_url = Column(String, nullable=True)
+    redirect_uris = Column(JSONB, nullable=False, default=[])
+    scopes = Column(JSONB, nullable=False, default=[])
+    status = Column(SQLAlchemyEnum(DeveloperAppStatus), nullable=False, default=DeveloperAppStatus.development)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    developer_org = relationship("Organization", back_populates="developer_apps")
+    installations = relationship("AppInstallation", back_populates="app")
+
+class AppInstallation(Base):
+    __tablename__ = "app_installations"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    app_id = Column(UUID(as_uuid=True), ForeignKey("developer_apps.id"), nullable=False)
+    customer_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    installed_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    installed_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    permissions = Column(JSONB, nullable=False, default={})
+
+    app = relationship("DeveloperApp", back_populates="installations")
+    customer_org = relationship("Organization", back_populates="installations")
+    installed_by = relationship("User", back_populates="app_installations")
+
+class SandboxEnvironment(Base):
+    __tablename__ = "sandbox_environments"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    developer_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    subdomain = Column(String, unique=True, index=True, nullable=False)
+    db_connection_string = Column(LargeBinary, nullable=False) # Will be encrypted
+    status = Column(SQLAlchemyEnum(SandboxEnvironmentStatus), nullable=False, default=SandboxEnvironmentStatus.provisioning)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    developer_org = relationship("Organization", back_populates="sandbox_environments")
+
+
 class AnalysisSuggestion(Base):
     __tablename__ = "analysis_suggestions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
@@ -232,6 +295,8 @@ class TeamMembership(Base):
 
     user = relationship("User", back_populates="team_memberships")
     team = relationship("Team", back_populates="members")
+    app_installations = relationship("AppInstallation", back_populates="installed_by")
+    devices = relationship("UserDevice", back_populates="user")
 
 class UserDevice(Base):
     __tablename__ = "user_devices"
