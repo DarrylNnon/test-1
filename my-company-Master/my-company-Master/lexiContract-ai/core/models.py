@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Boolean, Enum, ForeignKey, Table,
+    Column, Integer, String, Text, DateTime, Boolean, Enum as SQLAlchemyEnum, ForeignKey, Table,
     func, LargeBinary
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
@@ -21,7 +21,7 @@ organization_playbook_association = Table(
 class UserRole(str, enum.Enum):
     admin = "admin"
     member = "member"
-
+    
 class TeamRole(str, enum.Enum):
     lead = "lead"
     member = "member"
@@ -29,7 +29,7 @@ class TeamRole(str, enum.Enum):
 class DeviceType(str, enum.Enum):
     ios = "ios"
     android = "android"
-
+    
 class AnalysisStatus(str, enum.Enum):
     pending = "pending"
     in_progress = "in_progress"
@@ -148,6 +148,8 @@ class Contract(Base):
     # Relationships
     uploader: Mapped["User"] = relationship(back_populates="contracts")
     organization: Mapped["Organization"] = relationship(back_populates="contracts")
+    app_installations = relationship("AppInstallation", back_populates="installed_by")
+    devices = relationship("UserDevice", back_populates="user")
     team: Mapped[Optional["Team"]] = relationship(back_populates="contracts")
     suggestions: Mapped[List["AnalysisSuggestion"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
     comments: Mapped[List["UserComment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
@@ -196,7 +198,7 @@ class DeveloperApp(Base):
     logo_url = Column(String, nullable=True)
     redirect_uris = Column(JSONB, nullable=False, default=[])
     scopes = Column(JSONB, nullable=False, default=[])
-    status = Column(SQLAlchemyEnum(DeveloperAppStatus), nullable=False, default=DeveloperAppStatus.development)
+    status = Column(SQLAlchemyEnum(DeveloperAppStatus, name="developerappstatus"), nullable=False, default=DeveloperAppStatus.development)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -223,7 +225,7 @@ class SandboxEnvironment(Base):
     developer_org_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
     subdomain = Column(String, unique=True, index=True, nullable=False)
     db_connection_string = Column(LargeBinary, nullable=False) # Will be encrypted
-    status = Column(SQLAlchemyEnum(SandboxEnvironmentStatus), nullable=False, default=SandboxEnvironmentStatus.provisioning)
+    status = Column(SQLAlchemyEnum(SandboxEnvironmentStatus, name="sandboxenvironmentstatus"), nullable=False, default=SandboxEnvironmentStatus.provisioning)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     developer_org = relationship("Organization", back_populates="sandbox_environments")
@@ -295,8 +297,6 @@ class TeamMembership(Base):
 
     user = relationship("User", back_populates="team_memberships")
     team = relationship("Team", back_populates="members")
-    app_installations = relationship("AppInstallation", back_populates="installed_by")
-    devices = relationship("UserDevice", back_populates="user")
 
 class UserDevice(Base):
     __tablename__ = "user_devices"
@@ -427,3 +427,29 @@ class AccessPolicy(Base):
     effect = Column(String, nullable=False, default='allow') # V1 only supports 'allow'
     
     organization = relationship("Organization")
+
+# --- Models for AI Negotiation Insights & Predictive Analytics ---
+
+class NegotiationOutcomeEnum(enum.Enum):
+    accepted = "accepted"
+    rejected = "rejected"
+
+class NegotiationOutcome(Base):
+    __tablename__ = "negotiation_outcomes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+
+    # Fields for Negotiation Insights
+    original_clause_hash = Column(String, index=True, nullable=False)
+    counter_offer_hash = Column(String, index=True, nullable=False)
+    outcome = Column(SQLAlchemyEnum(NegotiationOutcomeEnum, name="negotiationoutcomeenum"), nullable=False)
+    contract_type = Column(String, nullable=True)
+    industry = Column(String, nullable=True) # User's org industry
+    count = Column(Integer, default=1, nullable=False)
+
+    # New Fields for Predictive Analytics
+    negotiation_duration_days = Column(Integer, nullable=True)
+    contract_value = Column(Integer, nullable=True)
+    counterparty_industry = Column(String, nullable=True)
+    clause_category = Column(String, index=True, nullable=True)

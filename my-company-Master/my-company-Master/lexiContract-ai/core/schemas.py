@@ -508,6 +508,16 @@ class FullAnalyticsDashboard(BaseModel):
     risk_distribution: list[RiskDistribution]
     volume_over_time: list[VolumeOverTime]
 
+class ClausePrediction(BaseModel):
+    clause_category: str
+    predicted_success_rate: float
+
+class ContractPredictions(BaseModel):
+    predicted_timeline_days: int
+    timeline_confidence_score: float
+    key_clause_predictions: List[ClausePrediction]
+
+
 class ComplianceDashboardSummary(BaseModel):
     findings_by_category: List[FindingByCategory]
     top_flagged_contracts: List[TopFlaggedContract]

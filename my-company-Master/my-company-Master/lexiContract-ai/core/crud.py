@@ -757,6 +757,23 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
         db.delete(db_template)
         db.commit()
     return db_template
+
+def get_clause_acceptance_stats(db: Session, clause_category: str) -> dict:
+    """
+    Aggregates the number of accepted vs. rejected outcomes for a given clause category.
+    """
+    results = db.query(
+        models.NegotiationOutcome.outcome,
+        func.sum(models.NegotiationOutcome.count).label('total_count')
+    ).filter(
+        models.NegotiationOutcome.clause_category == clause_category,
+    ).group_by(
+        models.NegotiationOutcome.outcome
+    ).all()
+
+    # The .name attribute accesses the string value of the enum member
+    return {row.outcome.name: row.total_count for row in results}
+
 # --- Analytics CRUD ---
 
 def get_analytics_kpis(db: Session, organization_id: uuid.UUID) -> dict:

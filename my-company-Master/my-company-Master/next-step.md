@@ -171,11 +171,11 @@ With our core analysis, drafting, and management features now in place, we will 
 *   **Next Steps (Predictive Analytics):**
     *   Conduct a research spike on the data and models required for predictive negotiation analytics (e.g., forecasting timelines, success probability). **(COMPLETED)**
     *   Enhance the `NegotiationOutcome` model to store more granular data points for training. **(NEXT UP)**
-    *   Develop and train an initial model to predict negotiation timelines based on contract type and counterparty history.
-    *   Integrate the predictive model into the backend and expose insights via the API.
-    *   Update the frontend to display predictive insights on the contract dashboard.
+    *   Develop the initial heuristic-based prediction service and the API to expose forecasts. **(COMPLETED)**
+    *   Update the frontend to display predictive insights on the contract dashboard. **(COMPLETED)**
+    *   Develop and train the first version of the machine learning model for timeline prediction. **(COMPLETED)**
 *   **Next Steps (Autonomous Redlining):**
-    *   Architect the system for autonomous redlining based on compliance playbooks for low-risk, standardized contracts.
+    *   Architect the system for autonomous redlining based on compliance playbooks for low-risk, standardized contracts. **(NEXT UP)**
     *   Implement a "confidence score" for all AI-generated changes.
     *   Develop a "human-in-the-loop" UI for reviewing and approving autonomous redlines before they are sent to the counterparty.
     *   Run a pilot program for autonomous redlining on NDAs.
