@@ -175,9 +175,12 @@ With our core analysis, drafting, and management features now in place, we will 
     *   Update the frontend to display predictive insights on the contract dashboard. **(COMPLETED)**
     *   Develop and train the first version of the machine learning model for timeline prediction. **(COMPLETED)**
 *   **Next Steps (Autonomous Redlining):**
-    *   Architect the system for autonomous redlining based on compliance playbooks for low-risk, standardized contracts. **(NEXT UP)**
-    *   Implement a "confidence score" for all AI-generated changes.
-    *   Develop a "human-in-the-loop" UI for reviewing and approving autonomous redlines before they are sent to the counterparty.
+    *   Architect the system for autonomous redlining based on compliance playbooks for low-risk, standardized contracts. **(COMPLETED)**
+    *   Enhance `AnalysisSuggestion` and `ContractVersion` models for autonomous redlining. **(COMPLETED)**
+    *   Implement the core `RedliningService` to apply playbook rules and generate new contract versions. **(COMPLETED)**
+    *   Implement the logic for calculating and storing a confidence score for each autonomous change. **(NEXT UP)**
+    *   Develop the "human-in-the-loop" UI for reviewing and approving the AI-generated redlines.
+    *   Implement the approval/rejection API endpoints and the full end-to-end workflow.
     *   Run a pilot program for autonomous redlining on NDAs.
 
 ---

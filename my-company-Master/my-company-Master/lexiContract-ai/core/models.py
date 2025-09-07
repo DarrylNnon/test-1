@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Boolean, Enum as SQLAlchemyEnum, ForeignKey, Table,
+    Column, Integer, String, Text, DateTime, Boolean, Enum as SQLAlchemyEnum, ForeignKey, Table, Float,
     func, LargeBinary
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
@@ -46,6 +46,12 @@ class NegotiationStatus(str, enum.Enum):
 class SuggestionStatus(str, enum.Enum):
     suggested = "suggested"
     accepted = "accepted"
+    rejected = "rejected"
+
+class VersionStatus(str, enum.Enum):
+    draft = "draft"
+    pending_approval = "pending_approval"
+    approved = "approved"
     rejected = "rejected"
 
 class SubscriptionStatus(str, enum.Enum):
@@ -167,10 +173,17 @@ class ContractVersion(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     uploader_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
+    # New fields for Autonomous Redlining
+    parent_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=True)
+    version_status = Column(SQLAlchemyEnum(VersionStatus, name="versionstatus"), default=VersionStatus.draft, nullable=False)
+
     contract = relationship("Contract", back_populates="versions")
     uploader = relationship("User")
     suggestions = relationship("AnalysisSuggestion", back_populates="version", cascade="all, delete-orphan")
     comments = relationship("UserComment", back_populates="version", cascade="all, delete-orphan")
+
+    # New relationship for Autonomous Redlining
+    parent_version = relationship("ContractVersion", remote_side=[id], backref="child_versions")
 
 # --- Marketplace & Partner Ecosystem ---
 
@@ -242,6 +255,10 @@ class AnalysisSuggestion(Base):
     comment: Mapped[str] = mapped_column(Text, nullable=False)
     risk_category: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[SuggestionStatus] = mapped_column(Enum(SuggestionStatus), default=SuggestionStatus.suggested, nullable=False)
+
+    # New fields for Autonomous Redlining
+    confidence_score = Column(Float, nullable=True)
+    is_autonomous = Column(Boolean, default=False, nullable=False)
 
     contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
     contract: Mapped["Contract"] = relationship(back_populates="suggestions")

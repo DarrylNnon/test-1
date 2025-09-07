@@ -462,6 +462,48 @@ def update_sandbox_environment(db: Session, sandbox_id: UUID, status: models.San
     db.refresh(db_version)
     return db_version
 
+def create_new_contract_version_with_parent(db: Session, original_version: models.ContractVersion, new_text: str) -> models.ContractVersion:
+    """
+    Creates a new, AI-generated contract version that is a child of an existing version.
+    It determines the next version number based on the highest existing for the contract.
+    """
+    highest_version = db.query(func.max(models.ContractVersion.version_number)).filter(
+        models.ContractVersion.contract_id == original_version.contract_id
+    ).scalar() or 0
+
+    new_version = models.ContractVersion(
+        contract_id=original_version.contract_id,
+        version_number=highest_version + 1,
+        full_text=new_text,
+        uploader_id=original_version.uploader_id, # Attributed to the same user
+        analysis_status=models.AnalysisStatus.completed, # The analysis is implicitly done
+        parent_version_id=original_version.id,
+        version_status=models.VersionStatus.pending_approval
+    )
+    db.add(new_version)
+    db.commit()
+    db.refresh(new_version)
+    return new_version
+
+def copy_suggestions_to_new_version(db: Session, suggestions: list[models.AnalysisSuggestion], new_version_id: uuid.UUID):
+    """
+    Copies a list of suggestions to a new contract version and marks them as autonomous.
+    """
+    for original_suggestion in suggestions:
+        new_suggestion = models.AnalysisSuggestion(
+            contract_version_id=new_version_id,
+            contract_id=original_suggestion.contract_id,
+            start_index=original_suggestion.start_index,
+            end_index=original_suggestion.end_index,
+            original_text=original_suggestion.original_text,
+            suggested_text=original_suggestion.suggested_text,
+            comment=original_suggestion.comment,
+            risk_category=original_suggestion.risk_category,
+            is_autonomous=True # Mark as an autonomous change
+        )
+        db.add(new_suggestion)
+    db.commit()
+
 def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
     """
     Retrieves an analysis suggestion by its ID.
