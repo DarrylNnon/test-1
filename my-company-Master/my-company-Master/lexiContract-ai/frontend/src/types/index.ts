@@ -95,10 +95,7 @@ export interface AnalysisSuggestion {
   comment: string;
   original_text: string;
   suggestion_text: string;
-  start_index?: number;
-  end_index?: number;
 }
-
 // A comment made by a user
 export interface UserComment {
   id: string;

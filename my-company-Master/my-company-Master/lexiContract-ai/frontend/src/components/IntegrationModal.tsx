@@ -1,4 +1,9 @@
 'use client';
+// Change this line:
+import useAuth from '@/hooks/useAuth';
+
+// To this:
+import { useAuth } from '@/hooks/useAuth';
 
 import { useState } from 'react';
 import useAuth from '@/hooks/useAuth';
