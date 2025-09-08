@@ -540,6 +540,19 @@ def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[mode
         .joinedload(models.ContractVersion.contract)
     ).filter(models.AnalysisSuggestion.id == suggestion_id).first()
 
+def update_suggestion_status(
+    db: Session, db_suggestion: models.AnalysisSuggestion, status: models.SuggestionStatus
+) -> models.AnalysisSuggestion:
+    """
+    Updates the status of a single analysis suggestion.
+    This function assumes the suggestion object is already fetched and authorized.
+    """
+    db_suggestion.status = status
+    db.add(db_suggestion)
+    db.commit()
+    db.refresh(db_suggestion)
+    return db_suggestion
+
 def create_clause(db: Session, clause: schemas.ClauseCreate, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.Clause:
     db_clause = models.Clause(
         **clause.model_dump(),
@@ -935,88 +948,3 @@ def get_compliance_findings_by_category(db: Session, organization_id: uuid.UUID)
         .all()
     )
     return [{"category": row.risk_category, "count": row.count} for row in results]
-
-def get_top_flagged_contracts(db: Session, organization_id: uuid.UUID, limit: int = 5) -> List[dict]:
-    """
-    Finds the contracts with the highest number of compliance-related findings.
-    """
-    compliance_categories = ["HIPAA", "FAR", "Data Privacy", "Security", "Compliance"]
-    results = (
-        db.query(
-            models.Contract.id,
-            models.Contract.filename,
-            func.count(models.AnalysisSuggestion.id).label('finding_count')
-        )
-        .join(models.ContractVersion).join(models.AnalysisSuggestion)
-        .filter(
-            models.Contract.organization_id == organization_id,
-            models.AnalysisSuggestion.risk_category.in_(compliance_categories)
-        )
-        .group_by(models.Contract.id, models.Contract.filename)
-        .order_by(func.count(models.AnalysisSuggestion.id).desc())
-        .limit(limit)
-        .all()
-    )
-    return [{"contract_id": row.id, "filename": row.filename, "finding_count": row.finding_count} for row in results]
-
-    # --- Google Drive Specific OAuth 2.0 Flow ---
-
-@router.get(
-    "/google-drive/auth",
-    summary="Initiate Google Drive Connection",
-    description="Redirects the user to Google to authorize the integration.",
-)
-def google_drive_auth_redirect(
-    current_user: models.User = Depends(dependencies.get_current_active_user),
-):
-    state = security.create_oauth_state_token(organization_id=str(current_user.organization_id))
-    # This scope provides read-only access to files, which is all we need for import.
-    scope = "https://www.googleapis.com/auth/drive.readonly"
-    auth_url = (
-        f"https://accounts.google.com/o/oauth2/v2/auth?"
-        f"client_id={settings.GOOGLE_CLIENT_ID}&"
-        f"redirect_uri={settings.GOOGLE_REDIRECT_URI}&"
-        f"response_type=code&"
-        f"scope={scope}&"
-        f"access_type=offline&" # Required to get a refresh token
-        f"prompt=consent&" # Ensures the user is prompted for consent every time
-        f"state={state}"
-    )
-    return RedirectResponse(url=auth_url)
-
-@router.get(
-    "/google-drive/callback",
-    summary="Google Drive OAuth Callback",
-    description="Handles the callback from Google after user authorization. Do not call directly.",
-)
-async def google_drive_auth_callback(
-    request: Request,
-    db: Session = Depends(dependencies.get_db),
-):
-    code = request.query_params.get("code")
-    state = request.query_params.get("state")
-
-    organization_id_str = security.verify_oauth_state_token(state)
-    if not organization_id_str:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired state token. Please try connecting again.")
-
-    token_url = "https://oauth2.googleapis.com/token"
-    payload = {
-        "client_id": settings.GOOGLE_CLIENT_ID,
-        "client_secret": settings.GOOGLE_CLIENT_SECRET,
-        "code": code,
-        "grant_type": "authorization_code",
-        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
-    }
-
-    async with httpx.AsyncClient() as client:
-        response = await client.post(token_url, data=payload)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Failed to retrieve token from Google: {response.text}")
-
-    token_data = response.json()
-    credentials = {"access_token": token_data["access_token"], "refresh_token": token_data["refresh_token"]}
-    google_drive_integration = crud.get_integration_by_name(db, name="Google Drive")
-    crud.upsert_organization_integration(db, organization_id=UUID(organization_id_str), integration_id=google_drive_integration.id, credentials=credentials, metadata={})
-    return RedirectResponse(url="/settings/integrations?success=google-drive")

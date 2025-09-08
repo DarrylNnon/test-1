@@ -139,6 +139,7 @@ export interface Contract {
   team_id: string | null;
   created_at: string;
   negotiation_status: 'drafting' | 'in_review' | 'negotiating' | 'signed' | 'archived';
+  analysis_status: string;
   versions: ContractVersion[];
   analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
   analysis_summary: string | null;

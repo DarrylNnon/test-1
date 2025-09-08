@@ -2,8 +2,7 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { User, UserWithOrg } from '@/types';
+import { UserWithOrg, Role, Organization } from '@/types';
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -23,55 +22,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // --- AUTHENTICATION DISABLED FOR DEVELOPMENT ---
   useEffect(() => {
-    const validateToken = async () => {
-      const storedToken = localStorage.getItem('accessToken');
-      if (storedToken) {
-        try {
-          setToken(storedToken);
-          const response = await api.get('/users/me');
-          setUser(response.data);
-        } catch (error) {
-          console.error('Token validation failed', error);
-          localStorage.removeItem('accessToken');
-          setToken(null);
-          setUser(null);
-        }
-      }
+    const mockAuthentication = () => {
+      console.warn("Authentication is currently disabled for development purposes.");
+      const mockOrg: Organization = {
+        id: 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6',
+        name: 'MockDev Corp',
+        enabled_playbooks: [],
+      };
+      const mockUser: UserWithOrg = {
+        id: 'f1e2d3c4-b5a6-f7e8-d9c0-b1a2f3e4d5c7',
+        email: 'dev.user@example.com',
+        organization_id: mockOrg.id,
+        role: Role.Admin,
+        is_active: true,
+        organization: mockOrg,
+      };
+      setUser(mockUser);
+      setToken('mock-development-token');
       setIsLoading(false);
     };
-    validateToken();
+    mockAuthentication();
   }, []); // Run only on initial mount
 
   const login = async (email: string, password: string) => {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-    const response = await api.post('/auth/token', formData, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-    const { access_token } = response.data;
-    localStorage.setItem('accessToken', access_token);
-    setToken(access_token);
-    const userResponse = await api.get('/users/me');
-    setUser(userResponse.data);
-    router.push('/');
+    console.log("Login function is disabled during development mode.");
+    return Promise.resolve();
   };
 
   const register = async (data: any) => {
-    await api.post('/auth/register', data);
-    await login(data.email, data.password);
+    console.log("Register function is disabled during development mode.");
+    return Promise.resolve();
   };
 
   const logout = () => {
-    localStorage.removeItem('accessToken');
-    setToken(null);
-    setUser(null);
-    router.push('/login');
+    console.log("Logout function is disabled during development mode.");
   };
 
   const value: AuthContextType = {
-    isAuthenticated: !!user,
+    isAuthenticated: true, // Always true in dev mode
     user,
     token,
     login,

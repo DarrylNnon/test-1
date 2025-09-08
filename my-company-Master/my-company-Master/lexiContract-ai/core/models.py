@@ -68,19 +68,6 @@ class Organization(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-# Clause-specific data
-    clause_category = Column(String, index=True, nullable=False)  # e.g., 'Liability', 'Indemnification'
-    original_clause_hash = Column(String, index=True, nullable=False) # Hash of the original text
-    final_clause_hash = Column(String, index=True, nullable=False) # Hash of the final accepted/rejected text
-    outcome = Column(String, nullable=False)  # e.g., 'ACCEPTED', 'REJECTED', 'MODIFIED'
-
-    # Contextual data (denormalized for ML training)
-    negotiation_duration_days = Column(Integer, nullable=True)  # Duration of the parent contract negotiation
-    contract_value = Column(Integer, nullable=True)
-    counterparty_industry = Column(String, nullable=True, index=True)
-    contract_type = Column(String, nullable=True, index=True) # e.g., 'MSA', 'NDA'
-
-
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
     contracts: Mapped[List["Contract"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
@@ -144,6 +131,7 @@ class User(Base):
     team_memberships: Mapped[List["TeamMembership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     created_templates: Mapped[List["ContractTemplate"]] = relationship(back_populates="created_by")
     devices: Mapped[List["UserDevice"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    app_installations = relationship("AppInstallation", back_populates="installed_by")
 
 class Contract(Base):
     __tablename__ = "contracts"
@@ -167,11 +155,8 @@ class Contract(Base):
     # Relationships
     uploader: Mapped["User"] = relationship(back_populates="contracts")
     organization: Mapped["Organization"] = relationship(back_populates="contracts")
-    app_installations = relationship("AppInstallation", back_populates="installed_by")
-    devices = relationship("UserDevice", back_populates="user")
     team: Mapped[Optional["Team"]] = relationship(back_populates="contracts")
-    suggestions: Mapped[List["AnalysisSuggestion"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
-    comments: Mapped[List["UserComment"]] = relationship(back_populates="contract", cascade="all, delete-orphan")
+    # Erroneous relationships to suggestions and comments removed. They belong on the ContractVersion model.
     versions = relationship("ContractVersion", back_populates="contract", cascade="all, delete-orphan", order_by="ContractVersion.version_number")
 
 
@@ -273,8 +258,6 @@ class AnalysisSuggestion(Base):
     confidence_score = Column(Float, nullable=True)
     is_autonomous = Column(Boolean, default=False, nullable=False)
 
-    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
-    contract: Mapped["Contract"] = relationship(back_populates="suggestions")
     version = relationship("ContractVersion", back_populates="suggestions")
 
 class UserComment(Base):
@@ -286,10 +269,8 @@ class UserComment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     contract_version_id = Column(UUID(as_uuid=True), ForeignKey("contract_versions.id"), nullable=False)
 
-    contract_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("contracts.id"))
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
 
-    contract: Mapped["Contract"] = relationship(back_populates="comments")
     user: Mapped["User"] = relationship(back_populates="comments")
     version = relationship("ContractVersion", back_populates="comments")
 

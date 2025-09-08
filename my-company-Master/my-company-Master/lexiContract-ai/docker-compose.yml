@@ -51,6 +51,8 @@ services:
       dockerfile: Dockerfile
     container_name: lexi_frontend
     command: npm run dev
+    environment:
+      - BACKEND_INTERNAL_URL=http://api:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
