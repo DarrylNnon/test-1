@@ -3,10 +3,32 @@ export enum Role {
   Member = "member",
 }
 
+export enum SubscriptionStatus {
+  trialing = "trialing",
+  active = "active",
+  past_due = "past_due",
+  canceled = "canceled",
+  incomplete = "incomplete",
+}
+
+export enum SuggestionStatus {
+  suggested = "suggested",
+  accepted = "accepted",
+  rejected = "rejected",
+}
+
+export enum VersionStatus {
+  draft = "draft",
+  pending_approval = "pending_approval",
+  approved = "approved",
+  rejected = "rejected",
+}
+
 export interface Organization {
   id: string;
   name: string;
   enabled_playbooks: CompliancePlaybook[];
+  subscription_status?: SubscriptionStatus;
 }
 
 export interface User {
@@ -73,6 +95,8 @@ export interface AnalysisSuggestion {
   comment: string;
   original_text: string;
   suggestion_text: string;
+  start_index?: number;
+  end_index?: number;
 }
 
 // A comment made by a user
@@ -84,6 +108,8 @@ export interface UserComment {
   comment_text: string;
   created_at: string;
   resolved: boolean;
+  start_index?: number;
+  end_index?: number;
 }
 
 /**
@@ -122,7 +148,7 @@ export interface ContractVersion {
   id: string;
   contract_id: string;
   version_number: number;
-  file_path: string;
+  full_text: string | null;
   created_at: string;
   analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
   analysis_summary: string | null;
@@ -138,10 +164,9 @@ export interface Contract {
   organization_id: string;
   team_id: string | null;
   created_at: string;
-  negotiation_status: 'drafting' | 'in_review' | 'negotiating' | 'signed' | 'archived';
+  negotiation_status: string;
   analysis_status: string;
   versions: ContractVersion[];
-  analysis_status: 'pending' | 'in_progress' | 'completed' | 'failed';
   analysis_summary: string | null;
   identified_risks: string[] | null;
 }
@@ -222,6 +247,33 @@ export interface CompliancePlaybook {
   id: string;
   name: string;
   description: string;
+  industry: string | null;
   is_enabled: boolean;
   organization_id: string;
+}
+
+// --- Contract Template Types ---
+
+export interface ContractTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  content: string;
+  category: string | null;
+  organization_id: string;
+  created_by_id: string;
+  created_by: User;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- AI Drafting Types ---
+
+export interface DraftContractResponse {
+  draft_content: string;
+}
+
+export interface FinalizeDraftRequest {
+  filename: string;
+  content: string;
 }

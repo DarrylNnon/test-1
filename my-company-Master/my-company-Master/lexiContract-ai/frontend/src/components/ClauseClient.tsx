@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { Clause, ClausePayload } from '@/types';
 import ClauseModal from './ClauseModal';
 

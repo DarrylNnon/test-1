@@ -32,6 +32,56 @@ class UserWithOrg(User):
 
     model_config = ConfigDict(from_attributes=True)
 
+# --- Clause Schemas ---
+
+class ClauseBase(BaseModel):
+    title: str
+    content: str
+    category: Optional[str] = None
+
+class ClauseCreate(ClauseBase):
+    pass
+
+class ClauseUpdate(ClauseBase):
+    pass
+
+class Clause(ClauseBase):
+    id: UUID
+    organization_id: UUID
+    created_by_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class FindSimilarClausesRequest(BaseModel):
+    text: str
+
+class ClauseSimilarityResult(BaseModel):
+    clause: Clause
+    similarity_score: float
+
+# --- Contract Schemas ---
+
+class Contract(BaseModel):
+    id: UUID
+    filename: str
+    created_at: datetime
+    analysis_status: str
+    negotiation_status: str
+    uploader_id: UUID
+    organization_id: UUID
+
+    class Config:
+        from_attributes = True
+
+class ContractDetail(Contract):
+    versions: List["ContractVersion"] = []
+
+    class Config:
+        from_attributes = True
+
 # --- Organization Schemas ---
 class OrganizationBase(BaseModel):
     name: str
@@ -527,3 +577,4 @@ UserWithOrg.model_rebuild()
 Organization.model_rebuild()
 Contract.model_rebuild()
 ContractVersion.model_rebuild()
+ContractDetail.model_rebuild()

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 
 interface GoogleDriveFile {
   id: string;

@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function Header() {
   const { isAuthenticated, user, logout } = useAuth();
+  const router = useRouter();
 
   return (
     <header className="bg-white shadow-sm">

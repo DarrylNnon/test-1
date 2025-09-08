@@ -12,6 +12,7 @@ export interface AuthContextType {
   register: (data: any) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  error: string | null; // Add error state
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     register,
     logout,
     isLoading,
+    error: null, // Provide a null error state in dev mode
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

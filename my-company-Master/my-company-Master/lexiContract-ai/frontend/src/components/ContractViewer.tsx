@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { ContractVersion } from '@/types';
 
 interface ContractViewerProps {
@@ -38,7 +39,7 @@ const ContractViewer = ({ version }: ContractViewerProps) => {
               {version.comments.map(comment => (
                 <li key={comment.id} className="bg-blue-50 p-3 rounded-md border border-blue-200">
                   <p className="text-sm text-gray-600">{comment.comment_text}</p>
-                  <p className="text-xs text-gray-500 mt-2">By: {comment.user.email} at {new Date(comment.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 mt-2">By: {comment.author.email} at {new Date(comment.created_at).toLocaleString()}</p>
                 </li>
               ))}
             </ul>

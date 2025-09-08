@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { AuditLog } from '@/types';
 
 const AuditLogClient = () => {

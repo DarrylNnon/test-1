@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { Notification } from '@/types';
 import { BellIcon } from '@heroicons/react/24/outline';
 

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { Contract, SubscriptionStatus } from '@/types';
 import Link from 'next/link';
 

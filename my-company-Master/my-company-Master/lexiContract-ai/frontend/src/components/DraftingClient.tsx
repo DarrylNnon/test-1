@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { ContractTemplate, DraftContractResponse, FinalizeDraftRequest } from '@/types';
 
 type WizardStep = 1 | 2 | 3;
 
 export default function DraftingClient() {
-  const { user, token, loading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState<WizardStep>(1);

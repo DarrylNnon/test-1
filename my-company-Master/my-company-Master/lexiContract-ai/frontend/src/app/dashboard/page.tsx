@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getContracts } from '@/lib/api';
 import { Contract } from '@/types';
 import { FileText, PlusCircle } from 'lucide-react';
+import { UploadContractModal } from '@/components/UploadContractModal';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const statusMap: { [key: string]: { text: string; bg: string; textColor: string } } = {
@@ -31,26 +33,41 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export default function DashboardPage() {
   const { user, token } = useAuth();
+  const router = useRouter();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const fetchContracts = () => {
+    getContracts()
+      .then(setContracts)
+      .catch(() => setError('Could not load contracts.'))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     if (token) {
-      getContracts()
-        .then(setContracts)
-        .catch(() => setError('Could not load contracts.'))
-        .finally(() => setLoading(false));
+      fetchContracts();
     }
   }, [token]);
+
+  const handleUploadSuccess = (newContract: Contract) => {
+    setIsUploadModalOpen(false);
+    // Redirect to the new contract's detail page
+    router.push(`/contracts/${newContract.id}`);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Welcome, {user?.email.split('@')[0]}
+          Welcome, {user?.email?.split('@')[0]}
         </h1>
-        <button className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">
+        <button
+          onClick={() => setIsUploadModalOpen(true)}
+          className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
+        >
           <PlusCircle className="w-4 h-4 mr-2" />
           Upload Contract
         </button>
@@ -83,6 +100,11 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+      <UploadContractModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }
