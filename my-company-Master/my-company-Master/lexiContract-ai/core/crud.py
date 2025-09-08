@@ -167,6 +167,31 @@ def get_contract_by_id(db: Session, contract_id: uuid.UUID, organization_id: uui
     )
 
 def create_contract_with_initial_version(db: Session, filename: str, full_text: str, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.Contract:
+    """
+    Creates a new Contract and its initial ContractVersion from an uploaded file.
+    This is the primary function for creating a new contract record.
+    """
+    db_contract = models.Contract(
+        filename=filename,
+        organization_id=organization_id,
+        uploader_id=user_id,
+        full_text=full_text,
+        analysis_status=models.AnalysisStatus.pending
+    )
+    db.add(db_contract)
+    db.flush()  # Flush to get the contract ID before creating the version
+
+    initial_version = models.ContractVersion(
+        contract_id=db_contract.id,
+        version_number=1,
+        full_text=full_text,
+        uploader_id=user_id,
+        analysis_status=models.AnalysisStatus.pending
+    )
+    db.add(initial_version)
+    db.commit()
+    db.refresh(db_contract)
+    return db_contract
 
 def get_custom_report(db: Session, report_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.CustomReport]:
     return db.query(models.CustomReport).filter(
@@ -508,54 +533,12 @@ def copy_suggestions_to_new_version(db: Session, suggestions_with_scores: list[t
 def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
     """
     Retrieves an analysis suggestion by its ID.
-    Eagerly loads up to the contract for authorization checks.
-    """
-    return db.query(models.AnalysisSuggestion).options(
-        joinedload(models.AnalysisSuggestion.version)
-        .joinedload(models.ContractVersion.contract)
-    ).filter(models.AnalysisSuggestion.id == suggestion_id).first()
-
-def update_suggestion_status(
-    db: Session, db_suggestion: models.AnalysisSuggestion, status: models.SuggestionStatus
-) -> models.AnalysisSuggestion:
-    """
-    Updates the status of a single analysis suggestion.
-    This function assumes the suggestion object is already fetched and authorized.
-    """
-    db_suggestion.status = status
-    db.add(db_suggestion)
-    db.commit()
-    db.refresh(db_suggestion)
-    return db_suggestion
-
-
-
-def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
-    """
-    Retrieves an analysis suggestion by its ID.
     """
     # Eagerly load up to the contract for authorization checks
     return db.query(models.AnalysisSuggestion).options(
         joinedload(models.AnalysisSuggestion.version)
         .joinedload(models.ContractVersion.contract)
     ).filter(models.AnalysisSuggestion.id == suggestion_id).first()
-
-def update_suggestion_status(
-    db: Session, suggestion_id: uuid.UUID, contract_version_id: uuid.UUID, data: schemas.AnalysisSuggestionUpdate
-) -> Optional[models.AnalysisSuggestion]:
-    """
-    Updates the status of a single analysis suggestion, ensuring it belongs to the correct contract version.
-    """
-    db_suggestion = db.query(models.AnalysisSuggestion).filter(
-        models.AnalysisSuggestion.id == suggestion_id,
-        models.AnalysisSuggestion.contract_version_id == contract_version_id
-    ).first()
-
-    if db_suggestion:
-        db_suggestion.status = data.status
-        db.commit()
-        db.refresh(db_suggestion)
-    return db_suggestion
 
 def create_clause(db: Session, clause: schemas.ClauseCreate, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.Clause:
     db_clause = models.Clause(
@@ -776,56 +759,6 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
         db.commit()
     return db_template
 
-# --- Contract Template CRUD ---
-
-def create_contract_template(db: Session, template: schemas.ContractTemplateCreate, user_id: uuid.UUID, organization_id: uuid.UUID) -> models.ContractTemplate:
-    db_template = models.ContractTemplate(
-        **template.model_dump(),
-        created_by_id=user_id,
-        organization_id=organization_id
-    )
-    db.add(db_template)
-    db.commit()
-    db.refresh(db_template)
-    return db_template
-
-def get_contract_templates_by_organization(db: Session, organization_id: uuid.UUID) -> List[models.ContractTemplate]:
-    return (
-        db.query(models.ContractTemplate)
-        .options(joinedload(models.ContractTemplate.created_by))
-        .filter(models.ContractTemplate.organization_id == organization_id)
-        .order_by(models.ContractTemplate.title)
-        .all()
-    )
-
-def get_contract_template_by_id(db: Session, template_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
-    return (
-        db.query(models.ContractTemplate)
-        .options(joinedload(models.ContractTemplate.created_by))
-        .filter(
-            models.ContractTemplate.id == template_id, models.ContractTemplate.organization_id == organization_id
-        )
-        .first()
-    )
-
-def update_contract_template(db: Session, template_id: uuid.UUID, template_update: schemas.ContractTemplateUpdate, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
-    db_template = get_contract_template_by_id(db, template_id=template_id, organization_id=organization_id)
-    if db_template:
-        update_data = template_update.model_dump(exclude_unset=True)
-        for key, value in update_data.items():
-            setattr(db_template, key, value)
-        db.add(db_template)
-        db.commit()
-        db.refresh(db_template)
-    return db_template
-
-def delete_contract_template(db: Session, template_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.ContractTemplate]:
-    db_template = get_contract_template_by_id(db, template_id=template_id, organization_id=organization_id)
-    if db_template:
-        db.delete(db_template)
-        db.commit()
-    return db_template
-
 def get_clause_acceptance_stats(db: Session, clause_category: str, organization_id: uuid.UUID) -> dict:
     """
     Aggregates the number of accepted vs. rejected outcomes for a given clause category.
@@ -844,121 +777,6 @@ def get_clause_acceptance_stats(db: Session, clause_category: str, organization_
 
     # The outcome is now a raw string, e.g., 'ACCEPTED'
     return {row.outcome: row.total_count for row in results}
-
-# --- Analytics CRUD ---
-
-def get_analytics_kpis(db: Session, organization_id: uuid.UUID) -> dict:
-    total_contracts = db.query(func.count(models.Contract.id)).filter(
-        models.Contract.organization_id == organization_id
-    ).scalar()
-    
-    contracts_in_progress = db.query(func.count(models.ContractVersion.id)).join(models.Contract).filter(
-        models.Contract.organization_id == organization_id,
-        models.ContractVersion.analysis_status.in_([models.AnalysisStatus.pending, models.AnalysisStatus.in_progress])
-    ).scalar()
-
-    # Calculate average cycle time for completed contracts
-    # This is a simplified calculation: (updated_at - created_at) for completed contracts
-    avg_cycle_time_interval = db.query(
-        func.avg(models.Contract.updated_at - models.Contract.created_at)
-    ).filter(
-        models.Contract.organization_id == organization_id,
-        models.Contract.analysis_status == models.AnalysisStatus.completed
-    ).scalar()
-
-    avg_cycle_time_days = avg_cycle_time_interval.days if avg_cycle_time_interval else 0.0
-
-    return {
-        "total_contracts": total_contracts or 0,
-        "contracts_in_progress": contracts_in_progress or 0,
-        "average_cycle_time_days": round(avg_cycle_time_days, 2)
-    }
-
-def get_risk_category_distribution(db: Session, organization_id: uuid.UUID) -> List[dict]:
-    results = db.query(
-        models.AnalysisSuggestion.risk_category,
-        func.count(models.AnalysisSuggestion.id).label('count')
-    ).join(models.ContractVersion, models.AnalysisSuggestion.contract_version_id == models.ContractVersion.id)\
-     .join(models.Contract, models.ContractVersion.contract_id == models.Contract.id)\
-     .filter(
-        models.Contract.organization_id == organization_id
-    ).group_by(
-        models.AnalysisSuggestion.risk_category
-    ).order_by(
-        func.count(models.AnalysisSuggestion.id).desc()
-    ).all()
-    return [{"category": row.risk_category, "count": row.count} for row in results]
-
-def get_contract_volume_over_time(db: Session, organization_id: uuid.UUID) -> List[dict]:
-    results = db.query(
-        func.to_char(models.Contract.created_at, 'YYYY-MM').label('month'),
-        func.count(models.Contract.id).label('count')
-    ).filter(
-        models.Contract.organization_id == organization_id
-    ).group_by('month').order_by('month').all()
-    return [{"month": row.month, "count": row.count} for row in results]
-
-# --- Integration CRUD ---
-
-def get_integration_by_name(db: Session, name: str) -> Optional[models.Integration]:
-    """Gets a system integration by its unique name."""
-    return db.query(models.Integration).filter(models.Integration.name == name).first()
-
-def create_system_integration(db: Session, name: str, description: str) -> models.Integration:
-    """Creates a new system-wide available integration."""
-    db_integration = models.Integration(name=name, description=description)
-    db.add(db_integration)
-    db.commit()
-    db.refresh(db_integration)
-    return db_integration
-
-def get_system_integrations(db: Session) -> List[models.Integration]:
-    """Lists all system-wide available integrations."""
-    return db.query(models.Integration).filter(models.Integration.is_active == True).all()
-
-def get_organization_integrations(db: Session, organization_id: uuid.UUID) -> List[models.OrganizationIntegration]:
-    """Lists all configured integrations for a specific organization."""
-    return (
-        db.query(models.OrganizationIntegration)
-        .options(joinedload(models.OrganizationIntegration.integration))
-        .filter(models.OrganizationIntegration.organization_id == organization_id)
-        .all()
-    )
-
-def get_organization_integration_by_id(db: Session, org_integration_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.OrganizationIntegration]:
-    """Gets a specific organization integration configuration."""
-    return (
-        db.query(models.OrganizationIntegration)
-        .filter(
-            models.OrganizationIntegration.id == org_integration_id,
-            models.OrganizationIntegration.organization_id == organization_id
-        )
-        .first()
-    )
-
-def create_organization_integration(db: Session, integration_id: int, organization_id: uuid.UUID, data: schemas.OrganizationIntegrationCreate) -> models.OrganizationIntegration:
-    """Creates a new integration configuration for an organization, encrypting credentials."""
-    credentials_json = json.dumps(data.credentials)
-    encrypted_credentials = security.encrypt_data(credentials_json)
-
-    db_org_integration = models.OrganizationIntegration(
-        organization_id=organization_id,
-        integration_id=integration_id,
-        is_enabled=data.is_enabled,
-        encrypted_credentials=encrypted_credentials
-    )
-    db.add(db_org_integration)
-    db.commit()
-    db.refresh(db_org_integration)
-    return db_org_integration
-
-def delete_organization_integration(db: Session, org_integration_id: uuid.UUID, organization_id: uuid.UUID) -> Optional[models.OrganizationIntegration]:
-    """Deletes an organization's integration configuration."""
-    db_org_integration = get_organization_integration_by_id(db, org_integration_id, organization_id)
-    if db_org_integration:
-        db.delete(db_org_integration)
-        db.commit()
-    return db_org_integration
 
 # --- Audit Log CRUD ---
 

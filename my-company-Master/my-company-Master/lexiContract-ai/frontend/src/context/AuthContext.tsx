@@ -2,7 +2,7 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { User, UserWithOrg } from '@/types';
 
 export interface AuthContextType {
@@ -47,7 +47,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const formData = new URLSearchParams();
     formData.append('username', email);
     formData.append('password', password);
-    const response = await api.post('/auth/token', formData);
+    const response = await api.post('/auth/token', formData, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
     const { access_token } = response.data;
     localStorage.setItem('accessToken', access_token);
     setToken(access_token);
