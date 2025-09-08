@@ -508,6 +508,31 @@ def copy_suggestions_to_new_version(db: Session, suggestions_with_scores: list[t
 def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
     """
     Retrieves an analysis suggestion by its ID.
+    Eagerly loads up to the contract for authorization checks.
+    """
+    return db.query(models.AnalysisSuggestion).options(
+        joinedload(models.AnalysisSuggestion.version)
+        .joinedload(models.ContractVersion.contract)
+    ).filter(models.AnalysisSuggestion.id == suggestion_id).first()
+
+def update_suggestion_status(
+    db: Session, db_suggestion: models.AnalysisSuggestion, status: models.SuggestionStatus
+) -> models.AnalysisSuggestion:
+    """
+    Updates the status of a single analysis suggestion.
+    This function assumes the suggestion object is already fetched and authorized.
+    """
+    db_suggestion.status = status
+    db.add(db_suggestion)
+    db.commit()
+    db.refresh(db_suggestion)
+    return db_suggestion
+
+
+
+def get_suggestion_by_id(db: Session, suggestion_id: uuid.UUID) -> Optional[models.AnalysisSuggestion]:
+    """
+    Retrieves an analysis suggestion by its ID.
     """
     # Eagerly load up to the contract for authorization checks
     return db.query(models.AnalysisSuggestion).options(
@@ -801,21 +826,24 @@ def delete_contract_template(db: Session, template_id: uuid.UUID, organization_i
         db.commit()
     return db_template
 
-def get_clause_acceptance_stats(db: Session, clause_category: str) -> dict:
+def get_clause_acceptance_stats(db: Session, clause_category: str, organization_id: uuid.UUID) -> dict:
     """
     Aggregates the number of accepted vs. rejected outcomes for a given clause category.
+    This queries the granular, per-clause outcome log.
     """
     results = db.query(
         models.NegotiationOutcome.outcome,
-        func.sum(models.NegotiationOutcome.count).label('total_count')
+        func.count(models.NegotiationOutcome.id).label('total_count')
     ).filter(
+        models.NegotiationOutcome.organization_id == organization_id,
         models.NegotiationOutcome.clause_category == clause_category,
+        models.NegotiationOutcome.outcome.in_(['ACCEPTED', 'REJECTED'])
     ).group_by(
         models.NegotiationOutcome.outcome
     ).all()
 
-    # The .name attribute accesses the string value of the enum member
-    return {row.outcome.name: row.total_count for row in results}
+    # The outcome is now a raw string, e.g., 'ACCEPTED'
+    return {row.outcome: row.total_count for row in results}
 
 # --- Analytics CRUD ---
 

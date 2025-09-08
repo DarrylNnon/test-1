@@ -170,7 +170,7 @@ With our core analysis, drafting, and management features now in place, we will 
 *   **Status:** In Progress **(NEXT UP)**
 *   **Next Steps (Predictive Analytics):**
     *   Conduct a research spike on the data and models required for predictive negotiation analytics (e.g., forecasting timelines, success probability). **(COMPLETED)**
-    *   Enhance the `NegotiationOutcome` model to store more granular data points for training. **(NEXT UP)**
+    *   Enhance the `NegotiationOutcome` model to store more granular data points for training. **(COMPLETED)**
     *   Develop the initial heuristic-based prediction service and the API to expose forecasts. **(COMPLETED)**
     *   Update the frontend to display predictive insights on the contract dashboard. **(COMPLETED)**
     *   Develop and train the first version of the machine learning model for timeline prediction. **(COMPLETED)**
@@ -179,9 +179,12 @@ With our core analysis, drafting, and management features now in place, we will 
     *   Enhance `AnalysisSuggestion` and `ContractVersion` models for autonomous redlining. **(COMPLETED)**
     *   Implement the core `RedliningService` to apply playbook rules and generate new contract versions. **(COMPLETED)**
     *   Implement the logic for calculating and storing a confidence score for each autonomous change. **(COMPLETED)**
-    *   Develop the "human-in-the-loop" UI for reviewing and approving the AI-generated redlines.**(NEXT UP)**
-    *   Implement the approval/rejection API endpoints and the full end-to-end workflow.
-    *   Run a pilot program for autonomous redlining on NDAs.
+    *   Develop the "human-in-the-loop" UI for reviewing and approving the AI-generated redlines. **(COMPLETED)**
+    *   Implement the approval/rejection API endpoints and the full end-to-end workflow. **(IN QUEUE)**NEXT UP
+    *   Run a pilot program for autonomous redlining on NDAs. **(IN QUEUE)**(COMPLETED)**
+     **Next Steps (Advanced User & Access Management):**
+    *   Architect a system for creating custom, role-based access control (RBAC) policies. **(IN QUEUE)**
+    *   Implement backend models for `CustomRole` and `Permission`. **(IN QUEUE)**
 
 ---
 

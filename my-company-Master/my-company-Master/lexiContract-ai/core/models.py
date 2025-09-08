@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Boolean, Enum as SQLAlchemyEnum, ForeignKey, Table, Float,
-    func, LargeBinary
+    func, LargeBinary, Column, Integer
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
 from sqlalchemy.orm import declarative_base, Mapped, mapped_column, relationship
@@ -67,6 +67,19 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+# Clause-specific data
+    clause_category = Column(String, index=True, nullable=False)  # e.g., 'Liability', 'Indemnification'
+    original_clause_hash = Column(String, index=True, nullable=False) # Hash of the original text
+    final_clause_hash = Column(String, index=True, nullable=False) # Hash of the final accepted/rejected text
+    outcome = Column(String, nullable=False)  # e.g., 'ACCEPTED', 'REJECTED', 'MODIFIED'
+
+    # Contextual data (denormalized for ML training)
+    negotiation_duration_days = Column(Integer, nullable=True)  # Duration of the parent contract negotiation
+    contract_value = Column(Integer, nullable=True)
+    counterparty_industry = Column(String, nullable=True, index=True)
+    contract_type = Column(String, nullable=True, index=True) # e.g., 'MSA', 'NDA'
+
 
     # Relationships
     users: Mapped[List["User"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
