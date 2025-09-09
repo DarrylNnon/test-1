@@ -3,49 +3,70 @@
 import { useState } from 'react';
 import { Contract, SignatureStatus } from '@/types';
 import SignatureModal from './SignatureModal';
-import { Send, CheckCircle, Clock } from 'lucide-react';
+import { Send, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 interface SignatureManagementPanelProps {
-  initialContract: Contract;
+  contract: Contract;
+  onUpdate: (updatedContract: Contract) => void;
 }
 
-export default function SignatureManagementPanel({ initialContract }: SignatureManagementPanelProps) {
-  const [contract, setContract] = useState<Contract>(initialContract);
+const StatusInfo = {
+  [SignatureStatus.Draft]: {
+    icon: Clock,
+    text: 'Draft',
+    description: 'The signature request has not been sent yet.',
+    buttonText: 'Send for Signature',
+    color: 'gray',
+  },
+  [SignatureStatus.Sent]: {
+    icon: Send,
+    text: 'Sent for Signature',
+    description: 'The document has been sent to all signers.',
+    buttonText: 'View Status',
+    color: 'blue',
+  },
+  [SignatureStatus.Completed]: {
+    icon: CheckCircle,
+    text: 'Completed',
+    description: 'All parties have signed the document.',
+    buttonText: 'View Signed Document',
+    color: 'green',
+  },
+  [SignatureStatus.Voided]: {
+    icon: XCircle,
+    text: 'Voided',
+    description: 'The signature request has been voided.',
+    buttonText: null,
+    color: 'red',
+  },
+};
+
+export default function SignatureManagementPanel({ contract, onUpdate }: SignatureManagementPanelProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const statusInfo = StatusInfo[contract.signature_status] || StatusInfo[SignatureStatus.Draft];
+  const Icon = statusInfo.icon;
+
   const handleSignatureSent = (updatedContract: Contract) => {
-    setContract(updatedContract);
+    onUpdate(updatedContract);
     setIsModalOpen(false);
   };
 
-  const getStatusDisplay = () => {
-    switch (contract.signature_status) {
-      case SignatureStatus.Sent:
-        return { icon: <Clock className="h-5 w-5 text-blue-500" />, text: 'Signature request sent', color: 'text-blue-700' };
-      case SignatureStatus.Completed:
-        return { icon: <CheckCircle className="h-5 w-5 text-green-500" />, text: 'Contract signed and completed', color: 'text-green-700' };
-      default:
-        return { icon: <Send className="h-5 w-5 text-gray-500" />, text: 'Ready to send for signature', color: 'text-gray-700' };
-    }
-  };
-
-  const { icon, text, color } = getStatusDisplay();
-
   return (
     <>
-      <div className="bg-gray-50 p-4 rounded-lg border">
-        <h3 className="font-semibold text-lg mb-3">E-Signature</h3>
+      <div className={`rounded-lg border border-${statusInfo.color}-300 bg-${statusInfo.color}-50 p-4`}>
         <div className="flex items-center justify-between">
-          <div className={`flex items-center space-x-2 ${color}`}>
-            {icon}
-            <span className="font-medium">{text}</span>
+          <div className="flex items-center">
+            <Icon className={`h-5 w-5 text-${statusInfo.color}-500`} aria-hidden="true" />
+            <div className="ml-3">
+              <p className={`text-sm font-medium text-${statusInfo.color}-800`}>{statusInfo.text}</p>
+              <p className={`mt-1 text-sm text-${statusInfo.color}-700`}>{statusInfo.description}</p>
+            </div>
           </div>
-          {contract.signature_status === SignatureStatus.Draft && (
-            <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700">Send for Signature</button>
-          )}
+          {statusInfo.buttonText && <button onClick={() => setIsModalOpen(true)} type="button" className="ml-4 inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">{statusInfo.buttonText}</button>}
         </div>
       </div>
-      {isModalOpen && <SignatureModal contractId={contract.id} contractFilename={contract.filename} onClose={() => setIsModalOpen(false)} onSignatureSent={handleSignatureSent} />}
+      {isModalOpen && <SignatureModal contract={contract} onClose={() => setIsModalOpen(false)} onSignatureSent={handleSignatureSent} />}
     </>
   );
 }
