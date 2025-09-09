@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import { Integration, OrganizationIntegration } from '@/types';
 import IntegrationModal from './IntegrationModal';
 
@@ -39,7 +39,7 @@ export default function IntegrationsClient() {
   }, [token, authLoading]);
 
   const connectedIntegrationIds = useMemo(() => {
-    return new Set(orgIntegrations.map(oi => oi.integration.id));
+    return new Set(orgIntegrations.map((oi: OrganizationIntegration) => oi.integration.id));
   }, [orgIntegrations]);
 
   const handleConnectClick = (integration: Integration) => {
@@ -51,7 +51,7 @@ export default function IntegrationsClient() {
     if (window.confirm('Are you sure you want to disconnect this integration?')) {
       try {
         await api.delete(`/integrations/organization/${orgIntegrationId}`);
-        setOrgIntegrations(prev => prev.filter(oi => oi.id !== orgIntegrationId));
+        setOrgIntegrations(prev => prev.filter((oi: OrganizationIntegration) => oi.id !== orgIntegrationId));
       } catch (err) {
         alert('Failed to disconnect integration.');
       }
@@ -80,8 +80,8 @@ export default function IntegrationsClient() {
       </div>
       <div className="border-t border-gray-200">
         <ul role="list" className="divide-y divide-gray-200">
-          {availableIntegrations.map(integration => {
-            const orgIntegration = orgIntegrations.find(oi => oi.integration.id === integration.id);
+          {availableIntegrations.map((integration: Integration) => {
+            const orgIntegration = orgIntegrations.find((oi: OrganizationIntegration) => oi.integration.id === integration.id);
             const isConnected = !!orgIntegration;
 
             return (

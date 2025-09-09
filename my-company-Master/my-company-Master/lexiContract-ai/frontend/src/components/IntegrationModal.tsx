@@ -1,13 +1,6 @@
 'use client';
-// Change this line:
-import useAuth from '@/hooks/useAuth';
-
-// To this:
-import { useAuth } from '@/hooks/useAuth';
-
-import { useState } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useState, FormEvent, ChangeEvent } from 'react';
+import { api } from '@/lib/api';
 import { Integration, OrganizationIntegration } from '@/types';
 
 interface IntegrationModalProps {
@@ -22,7 +15,7 @@ export default function IntegrationModal({ isOpen, onClose, onSave, integration 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -54,7 +47,7 @@ export default function IntegrationModal({ isOpen, onClose, onSave, integration 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label htmlFor="api_key" className="block text-sm font-medium text-gray-700">API Key</label>
-            <input type="password" id="api_key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
+            <input type="password" id="api_key" value={apiKey} onChange={(e: ChangeEvent<HTMLInputElement>) => setApiKey(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
             <p className="mt-2 text-xs text-gray-500">Your API key will be stored securely and encrypted at rest.</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}

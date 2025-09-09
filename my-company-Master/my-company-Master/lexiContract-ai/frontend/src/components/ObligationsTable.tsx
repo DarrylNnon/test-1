@@ -8,9 +8,9 @@ interface ObligationsTableProps {
 }
 
 export const ObligationsTable: React.FC<ObligationsTableProps> = ({ obligations, onObligationUpdate }) => {
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const handleStatusChange = async (obligationId: number, newStatus: ObligationStatus) => {
+  const handleStatusChange = async (obligationId: string, newStatus: ObligationStatus) => {
     setLoadingId(obligationId);
     try {
       const response = await api.put(`/obligations/${obligationId}`, { status: newStatus });

@@ -9,6 +9,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Install missing peer dependencies
+RUN npm install @heroicons/react
+
 # Copy the rest of the application source code
 COPY . .
 

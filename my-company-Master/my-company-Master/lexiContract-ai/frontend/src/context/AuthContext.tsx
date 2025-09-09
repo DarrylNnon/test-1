@@ -11,7 +11,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => void;
-  isLoading: boolean;
+  loading: boolean;
   error: string | null; // Add error state
 }
 
@@ -20,7 +20,7 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserWithOrg | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   // --- AUTHENTICATION DISABLED FOR DEVELOPMENT ---
@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       setUser(mockUser);
       setToken('mock-development-token');
-      setIsLoading(false);
+      setLoading(false);
     };
     mockAuthentication();
   }, []); // Run only on initial mount
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     register,
     logout,
-    isLoading,
+    loading,
     error: null, // Provide a null error state in dev mode
   };
 

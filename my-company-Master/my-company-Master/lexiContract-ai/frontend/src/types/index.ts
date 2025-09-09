@@ -43,6 +43,15 @@ export interface UserWithOrg extends User {
   organization: Organization;
 }
 
+// --- Auth Types ---
+
+export interface AuthContextType {
+  token: string | null;
+  user: UserWithOrg | null;
+  loading: boolean;
+  isAuthenticated: boolean;
+}
+
 // --- Reporting Engine Types ---
 
 export interface ReportFilter {
@@ -95,6 +104,9 @@ export interface AnalysisSuggestion {
   comment: string;
   original_text: string;
   suggestion_text: string;
+  start_index: number;
+  end_index: number;
+  status: SuggestionStatus;
 }
 // A comment made by a user
 export interface UserComment {
@@ -166,6 +178,8 @@ export interface Contract {
   versions: ContractVersion[];
   analysis_summary: string | null;
   identified_risks: string[] | null;
+  signature_status: SignatureStatus;
+  signers: Signer[];
 }
 
 // From the Advanced Analytics Dashboard feature
@@ -273,4 +287,100 @@ export interface DraftContractResponse {
 export interface FinalizeDraftRequest {
   filename: string;
   content: string;
+}
+
+// --- Integration Types ---
+
+export interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  category: 'CRM' | 'ERP' | 'Storage' | 'E_SIGNATURE';
+  auth_type: 'api_key' | 'oauth2';
+}
+
+export interface OrganizationIntegration {
+  id: string;
+  organization_id: string;
+  integration_id: string;
+  is_enabled: boolean;
+  metadata?: Record<string, any> | null;
+  integration: Integration;
+}
+
+// --- Post-Signature Management Types ---
+
+export enum MilestoneType {
+  EffectiveDate = 'Effective Date',
+  ExpirationDate = 'Expiration Date',
+  AutoRenewalDate = 'Auto-Renewal Date',
+  RenewalNoticeDeadline = 'Renewal Notice Deadline',
+  TerminationNoticeDeadline = 'Termination Notice Deadline',
+}
+
+export interface ContractMilestone {
+  id: string;
+  contract_id: string;
+  milestone_type: MilestoneType;
+  milestone_date: string;
+  description?: string | null;
+  created_by_ai: boolean;
+}
+
+export enum ObligationResponsibleParty {
+  OurCompany = 'Our Company',
+  Counterparty = 'Counterparty',
+}
+
+export enum ObligationStatus {
+  Pending = 'Pending',
+  InProgress = 'In Progress',
+  Completed = 'Completed',
+  Overdue = 'Overdue',
+}
+
+export interface TrackedObligation {
+  id: string;
+  contract_id: string;
+  obligation_text: string;
+  responsible_party: ObligationResponsibleParty;
+  due_date?: string | null;
+  status: ObligationStatus;
+  created_by_ai: boolean;
+}
+
+// --- Notification Types ---
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+  link_url?: string | null;
+}
+
+// --- E-Signature Types ---
+
+export enum SignatureStatus {
+  Draft = 'draft',
+  Sent = 'sent',
+  Completed = 'completed',
+  Voided = 'voided',
+}
+
+export enum SignerStatus {
+  Created = 'created',
+  Sent = 'sent',
+  Delivered = 'delivered',
+  Signed = 'signed',
+  Declined = 'declined',
+}
+
+export interface Signer {
+  id: string;
+  name: string;
+  email: string;
+  signing_order: number;
+  status: SignerStatus;
 }

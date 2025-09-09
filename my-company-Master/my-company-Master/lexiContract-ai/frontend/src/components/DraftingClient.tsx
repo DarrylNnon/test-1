@@ -9,7 +9,7 @@ import { ContractTemplate, DraftContractResponse, FinalizeDraftRequest } from '@
 type WizardStep = 1 | 2 | 3;
 
 export default function DraftingClient() {
-  const { user, token, isLoading: authLoading } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const [step, setStep] = useState<WizardStep>(1);

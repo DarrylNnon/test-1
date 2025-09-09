@@ -86,6 +86,22 @@ export const uploadContract = async (file: File): Promise<Contract> => {
   }
 };
 
+export const generateClause = async (prompt: string, token: string): Promise<string> => {
+  try {
+    const response = await api.post<{ generated_text: string }>(
+      '/ai/generate-clause',
+      { prompt },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data.generated_text;
+  } catch (error) {
+    console.error('Failed to generate clause:', error);
+    // Propagate a more specific error message if available
+    const apiError = (error as any).response?.data?.detail || 'Failed to generate clause';
+    throw new Error(apiError);
+  }
+};
+
 // Add an interceptor to include the auth token in requests if it exists.
 api.interceptors.request.use((config) => {
   // The logic for setting baseURL is no longer needed here.
