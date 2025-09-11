@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { ContractTemplate } from '@/types';
 
 interface TemplateModalProps {
@@ -70,7 +70,7 @@ export default function TemplateModal({ isOpen, onClose, onSave, template }: Tem
             <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"/>
           </div>
           <div>
-            <label htmlFor="content" className="block text-sm font-medium text-gray-700">Content (Use `{{variable_name}}` for placeholders)</label>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700">{'Content (Use `{{variable_name}}` for placeholders)'}</label>
             <textarea id="content" value={content} onChange={(e) => setContent(e.target.value)} required rows={10} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"/>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}

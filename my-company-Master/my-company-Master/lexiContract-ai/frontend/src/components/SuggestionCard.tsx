@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { AnalysisSuggestion, SuggestionStatus } from '@/types';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 
 interface SuggestionCardProps {
   suggestion: AnalysisSuggestion;
@@ -72,9 +72,9 @@ export default function SuggestionCard({ suggestion, onStatusChange }: Suggestio
       <p className="text-sm text-gray-600 mb-3">{suggestion.comment}</p>
       <div className="text-xs space-y-2">
         <p><strong className="text-red-600">Original:</strong> <span className="font-mono bg-red-100 p-1 rounded">{suggestion.original_text}</span></p>
-        {suggestion.suggested_text && (
-          <p><strong className="text-green-600">Suggestion:</strong> <span className="font-mono bg-green-100 p-1 rounded">{suggestion.suggested_text}</span></p>
-        )}
+        {suggestion.suggestion_text && (
+          <p><strong className="text-green-600">Suggestion:</strong> <span className="font-mono bg-green-100 p-1 rounded">{suggestion.suggestion_text}</span></p>
+        )} 
       </div>
       {suggestion.status === SuggestionStatus.suggested && (
         <div className="mt-4 flex items-center justify-end space-x-3">

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import useAuth from '@/hooks/useAuth';
-import api from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { ContractTemplate } from '@/types';
 import TemplateModal from './TemplateModal';
 

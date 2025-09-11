@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import type { Range } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
@@ -24,7 +25,7 @@ const TipTapEditor = ({ document, provider, onGenerateClause, onEditorUpdate }: 
         history: false,
       }),
       SlashCommand.configure({
-        command: ({ editor, range, props }) => {
+        command: ({ editor, range, props }: { editor: Editor, range: Range, props: any }) => {
           if (props.item.title === 'Generate Clause') {
             editor.chain().focus().deleteRange(range).run();
             onGenerateClause();

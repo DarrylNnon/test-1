@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { ComplianceDashboardSummary } from '@/types';
 import ComplianceBarChart from '@/components/ComplianceBarChart';
 import TopFlaggedContractsTable from '@/components/TopFlaggedContractsTable';

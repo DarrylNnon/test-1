@@ -1,7 +1,7 @@
 'use client';
 
 import { UserComment } from '@/types';
-import { useUser } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UserCommentCardProps {
   comment: UserComment;
@@ -9,7 +9,7 @@ interface UserCommentCardProps {
 }
 
 export default function UserCommentCard({ comment, onHover }: UserCommentCardProps) {
-  const { user } = useUser();
+  const { user } = useAuth();
 
   return (
     <div

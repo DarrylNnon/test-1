@@ -33,7 +33,7 @@ const VersionDiffViewer = ({ diffText }: VersionDiffViewerProps) => {
           {diff.hunks.map((hunk, hunkIndex) => (
             <div key={`hunk-${hunkIndex}`}>
               <div className="bg-gray-200 text-gray-500 px-2 py-1">
-                {hunk.header}
+                {`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@`}
               </div>
               {hunk.lines.map((line, lineIndex) => {
                 const lineType = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'context';
